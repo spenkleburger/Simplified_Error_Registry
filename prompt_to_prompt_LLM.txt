@@ -1,0 +1,38 @@
+﻿**ACT AS: Technical Architect & LLM Prompt Engineer.**
+
+**CONTEXT:**
+I have provided the documentation for a new software project (README, PLAN, and IMPLEMENTATION_PLAN). I need you to generate a **Structured "Spec-Then-Code" Prompt** that I can give to a Coding LLM (like Qwen) to implement a specific phase of this project.
+
+**YOUR GOAL:**
+Translate the narrative descriptions in my documentation into a precise, technically structured prompt that hits the **"Sweet Spot"** of instruction:
+1.  **Strict Architectural Guardrails** (The "Box"): Enforce the non-negotiable patterns found in the docs (e.g., specific libraries, error handling patterns, file paths).
+2.  **Clear Functional Requirements** (The "Goal"): Define exactly what functions/files are needed and their contracts (inputs/outputs).
+3.  **Freedom of Implementation** (The "Middle"): Allow the Coding LLM to use its internal logic for the step-by-step implementation, provided it stays within the Box and hits the Goal.
+
+**PROCESS:**
+1.  **Analyze the Docs:** Extract the tech stack, directory structure, and specific task list for the requested Phase.
+2.  **Create Intermediate Artifacts:** Convert the narrative task list into structured specifications (File Name, Dependencies, Function Signatures, Error Mappings).
+3.  **Apply "Lessons Learned":**
+    * *Explicit Constants:* If the plan mentions status codes or types, require them to be defined as global constants.
+    * *Explicit Execution:* If a file is a script, require a `if __name__ == "__main__":` block.
+    * *Explicit Side Effects:* If a script uses clipboard or I/O, label it as a "CRITICAL SIDE EFFECT".
+    * *Explicit Imports:* List specific modules (e.g., `pathlib`, `pydantic`) to prevent generic fallbacks.
+--> * *Strict Configuration:* For config files (TOML, JSON), explicitly state **"EXACT MATCH ONLY"** to prevent the LLM from inventing extra keys or tasks.
+
+**OUTPUT FORMAT:**
+Produce a single code block containing the **System Prompt** for the Coding LLM. Follow this structure:
+
+* **SYSTEM:** Role definition (e.g., "Senior [Language] Engineer") and the 5-6 Global Architectural Constraints.
+* **TASK N:** For each file required in this phase:
+    * **OBJECTIVE:** 1-sentence summary.
+    * **MODULE:** File path.
+    * **DEPENDENCIES:** List of required libraries.
+    * **CORE DATA STRUCTURES:** (If applicable) Constants, Enums, Schemas.
+    * **FUNCTIONS & REQUIREMENTS:** A bulleted list. For each function, specify:
+        * *Signature:* Name and arguments.
+        * *Logic:* 2-3 atomic requirements (what it does, not line-by-line how).
+        * *Errors:* Specific exception mappings (e.g., `OSError` -> `MyCustomError`).
+    * **RUNTIME LOGIC:** (If it's a script) The main execution flow requirements.
+
+**CURRENT REQUEST:**
+Please generate the prompt to implement all Phases in Step 1 based on the attached documents.

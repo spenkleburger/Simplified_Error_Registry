@@ -1,0 +1,38 @@
+# ============================================================================
+# RUFF.TOML - Ruff Linter Configuration
+# ============================================================================
+# Ruff replaces flake8 + isort
+# This file configures linting and import sorting
+# ============================================================================
+
+line-length = 88
+target-version = "py310"
+
+# Exclude project-specific directories (customize per project)
+# exclude = [
+#     "legacy/",
+#     "old/",
+# ]
+
+# Enable rule sets and ignore rules
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting) - replaces isort tool
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]
+ignore = [
+    "E203",  # whitespace before ':' (conflicts with black)
+    "E266",  # too many leading '#' for block comment
+    "E501",  # line too long (handled by black)
+    "B008",  # FastAPI File(...) in defaults is correct usage (remove if not using FastAPI)
+    "E402",  # Module imports after code are sometimes intentional
+]
+
+# Per-file ignores (customize as needed)
+[lint.per-file-ignores]
+# Test files may have intentional import patterns
+"tests/*.py" = ["E402"]

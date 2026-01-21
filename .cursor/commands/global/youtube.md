@@ -1,0 +1,1 @@
+use the youtube_transcript mcp server to download the transcript from the link provided hereafter and save it as a formatted .md file in \docs\transcripts. Give the file a short name that reflects its content. If not already included, the file text should include a time stamp and author name (if available). Link:

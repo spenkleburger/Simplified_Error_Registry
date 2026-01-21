@@ -1,0 +1,26 @@
+---
+description: Port management and conflict prevention. Consult global and project port registries before creating, modifying, or using any port number in code, .env files, docker-compose, config files, scripts, or documentation. Update project PORTS.md when making changes (never edit global registry).
+alwaysApply: false
+---
+
+# Port Management Rules
+
+Say "Prompt Rules being applied" once whenever these rules are loaded in a chat.
+
+Before creating, modifying, or using any port number:
+
+**ALWAYS consult registries first:**
+- Check `C:\Projects\Project_Ports\GLOBAL_PORTS_REGISTRY.md` (global, read-only - never edit)
+- Check project's `PORTS.md` (local, can be edited)
+- Verify no conflicts in either registry
+
+**When assigning/modifying ports:**
+- Always choose unused port (prefer 3000-9000 range, avoid 0-1023)
+- Configure in: `config/settings.py` (env var), `.env` template in README.md, `.env.template`
+- Update ALL references: `config/settings.py`, `docker-compose.yml`, scripts, `*.PLAN`, `*.IMPLEMENTATION_PLAN.md`, `PORTS.md`
+- **Never edit** `C:\Projects\Project_Ports\GLOBAL_PORTS_REGISTRY.md` (read-only, user updates manually)
+- Note: Remind user to update actual `.env` file manually
+
+**When detecting conflicts or mismatches:**
+- Flag clearly, list all files with conflicting port, suggest resolution
+- For proactive audit: Review all port usage, update PORTS.md, ensure consistency

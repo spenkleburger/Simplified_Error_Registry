@@ -1,0 +1,51 @@
+# ============================================================================
+# Requirements.in - Direct Dependencies Only
+# ============================================================================
+# This file lists only your project's direct dependencies (packages you
+# explicitly use in your code). Use pip-tools to generate requirements.txt
+# with all transitive dependencies.
+#
+# Usage:
+#   1. List your direct dependencies here (with version constraints)
+#   2. Run: pip-compile requirements.in
+#   3. This generates requirements.txt with all dependencies pinned
+#
+# To update dependencies:
+#   pip-compile --upgrade requirements.in
+# ============================================================================
+
+# Environment & Configuration
+python-dotenv>=1.0.0
+
+# HTTP Requests
+# requests>=2.31.0
+# httpx>=0.24.0
+
+# Data Handling
+# pandas>=2.0.0
+# numpy>=1.24.0
+
+# Data Validation
+# pydantic>=2.0.0
+# PyYAML>=6.0
+
+# Database
+# psycopg2-binary>=2.9.0
+# sqlalchemy>=2.0.0
+
+# Date & Time
+# python-dateutil>=2.8.0
+# pytz>=2023.3
+
+# Utilities
+# tqdm>=4.65.0
+# click>=8.1.0
+
+# Web Frameworks
+# fastapi>=0.100.0
+# flask>=2.3.0
+
+# ============================================================================
+# Note: Uncomment and customize the packages you need for your project
+# ============================================================================
+

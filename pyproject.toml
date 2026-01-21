@@ -1,0 +1,70 @@
+# ============================================================================
+# PYPROJECT.TOML - Modern Python Project Configuration
+# ============================================================================
+# This file contains project metadata and tool configurations
+# ============================================================================
+
+[project]
+name = "project-name"  # Update with your project name
+version = "0.1.0"
+description = "Project description"  # Update with your description
+requires-python = ">=3.10"
+
+# ============================================================================
+# Task Automation (taskipy)
+# ============================================================================
+# Usage: task <task-name>
+# Example: task push, task checks, task freeze
+# ============================================================================
+
+[tool.taskipy.tasks]
+# ============================================================================
+# Testing
+# ============================================================================
+# Run tests (pytest)
+test = "pytest"
+
+# Run smart-detected backend tests by surface area
+"test:backend" = "python scripts/test_backend.py"
+
+# Run frontend tests only
+"test:frontend" = "python scripts/test_frontend.py"
+
+# Run integration tests (end-to-end frontend + backend)
+"test:integration" = "python scripts/test_integration.py"
+
+# ============================================================================
+# CI/CD
+# ============================================================================
+# Run CI checks locally (mirrors GitHub Actions)
+ci = "python scripts/run_ci_locally.py"
+
+# ============================================================================
+# Git & Version Control
+# ============================================================================
+# Interactive git workflow: add, commit (with prompt), push
+push = "python scripts/git_push.py"
+
+# ============================================================================
+# Dependency Management
+# ============================================================================
+# Freeze dependencies and audit
+freeze = "python scripts/freeze_and_audit.py"
+
+# ============================================================================
+# Utility Tasks
+# ============================================================================
+# Clean temporary files (cross-platform) - removes __pycache__, .pytest_cache, .mypy_cache, htmlcov, .coverage
+clean = "python -c \"import os, shutil; [shutil.rmtree(p) for p in ['__pycache__', '.pytest_cache', '.mypy_cache', 'htmlcov', '.coverage'] if os.path.exists(p)]; [os.remove(f) for f in ['.coverage'] if os.path.isfile(f)]\""
+
+# Show all available tasks
+help = "task --list"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+# Ruff configuration is in ruff.toml (separate file)
+
+# ============================================================================
+

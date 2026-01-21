@@ -1,0 +1,80 @@
+# ============================================================================
+# Docker Compose Template
+# ============================================================================
+# Copy this file to docker-compose.yml and customize for your project
+# ============================================================================
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # CRITICAL: Mount code directory for live development - changes reflect immediately
+      - .:/app
+      # Mount data directory if application needs access to data files
+      - ./data:/app/data
+      # Optional: Mount config directory (read-only if appropriate)
+      # - ./config:/app/config:ro
+      # AI Infrastructure & GER: Mount shared knowledge volume
+      - ger_knowledge_volume:/app/ger_knowledge
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # Optional: Add healthcheck for production deployments
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+
+  db:
+    image: postgres:15
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${DB_NAME:-mydb}
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      # CRITICAL: Mount database data directory to persist data even if container fails
+      # Data will be stored in ./data/pg on the host and persist across container restarts
+      - ./data/pg:/var/lib/postgresql/data
+      # Optional: Mount initialization scripts
+      # - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-mydb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ============================================================================
+# Customization Notes:
+# ============================================================================
+# - Update port mappings to match your application ports (check PORTS.md)
+# - Database credentials should be in .env file (never commit .env)
+# - Database data persists in ./data/pg (create directory if needed)
+# - Code changes are reflected immediately via volume mounts (live development)
+# - Add more services as needed (Redis, etc.)
+# - Remove db service if you don't need a database
+# - Update volumes to match your project structure
+# - For production, consider using named volumes instead of bind mounts
+# 
+# ============================================================================
+# Volumes
+# ============================================================================
+
+volumes:
+  ger_knowledge_volume:
+    external: true
+
+# ============================================================================
+

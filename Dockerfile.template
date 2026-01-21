@@ -1,0 +1,48 @@
+# ============================================================================
+# Dockerfile Template
+# ============================================================================
+# Copy this file to Dockerfile and customize for your project
+# ============================================================================
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies (add more as needed)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+# NOTE: In docker-compose.yml, this directory is mounted as a volume for
+# live development. The COPY here ensures code is available if running
+# the container standalone (without docker-compose).
+COPY . .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Expose port (update if your app uses a different port)
+EXPOSE 8000
+
+# Run application (update command based on your project)
+CMD ["python", "scripts/main.py"]
+
+# ============================================================================
+# Customization Notes:
+# ============================================================================
+# - Update Python version if needed (python:3.10-slim, python:3.12-slim)
+# - Add system dependencies in the apt-get install section
+# - For PostgreSQL: Add libpq-dev and postgresql-client
+# - Update EXPOSE port to match your application (check PORTS.md)
+# - Update CMD to match your application entry point
+# - Consider adding HEALTHCHECK for production deployments
+# 
+# IMPORTANT: When using docker-compose.yml, code is mounted as a volume
+# for live development. This COPY ensures the image works standalone too.
+# ============================================================================
+

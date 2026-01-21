@@ -1,0 +1,156 @@
+# ============================================================================
+# CI Pipeline - Standardized Python Project Checks
+# ============================================================================
+# This workflow runs code quality checks and tests on every push and PR
+# 
+# Checks performed:
+#   1. Code formatting (Black)
+#   2. Linting (Ruff)
+#   3. Type checking (mypy)
+#   4. Security scanning (pip-audit, bandit) - Optional
+#   5. Tests (pytest with coverage)
+#
+# This workflow is designed to be reusable across projects. Simply copy
+# this file to your project's .github/workflows/ directory.
+# ============================================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  # ========================================================================
+  # Code Quality Checks
+  # ========================================================================
+  quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          # Install project dependencies if requirements.txt exists and has uncommented lines
+          if [ -f requirements.txt ] && grep -v '^#' requirements.txt | grep -v '^$' | grep -q .; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Check code formatting with Black
+        run: |
+          black --check --diff .
+      
+      - name: Run Ruff linter
+        run: |
+          ruff check .
+      
+      - name: Run type checking with mypy
+        run: |
+          mypy src/ config/ scripts/ || true
+        continue-on-error: true
+        # Note: mypy is set to continue-on-error because it's often configured
+        # for gradual typing. Remove this if you want strict type checking.
+  
+  # ========================================================================
+  # Security Scanning (Optional but Recommended)
+  # ========================================================================
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          # Install security scanning tools
+          pip install pip-audit bandit[toml]
+          # Install project dependencies if requirements.txt exists and has uncommented lines
+          if [ -f requirements.txt ] && grep -v '^#' requirements.txt | grep -v '^$' | grep -q .; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Check for vulnerable dependencies (pip-audit)
+        run: |
+          pip-audit --desc
+        continue-on-error: true
+        # Note: Set continue-on-error: false if you want security issues to fail CI
+      
+      - name: Scan code for security issues (bandit)
+        run: |
+          bandit -r src/ config/ scripts/ --exclude tests/
+        continue-on-error: true
+        # Note: Set continue-on-error: false if you want security issues to fail CI
+        # Exclude test files from bandit scan (they often have false positives)
+  
+  # ========================================================================
+  # Tests
+  # ========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          # Install project dependencies if requirements.txt exists and has uncommented lines
+          if [ -f requirements.txt ] && grep -v '^#' requirements.txt | grep -v '^$' | grep -q .; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Run tests with pytest
+        run: |
+          pytest --cov=src --cov-report=xml --cov-report=term-missing
+        # Note: Tests will fail if no tests exist. You can make this optional:
+        # continue-on-error: true
+      
+      - name: Upload coverage to Codecov (optional)
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+        # Remove this step if you don't use Codecov
+

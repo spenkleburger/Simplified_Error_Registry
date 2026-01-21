@@ -1,0 +1,22 @@
+﻿---
+description: Bootstrap rule. Ensures global Cursor rules are applied even when Cursor doesn't auto-load rules through a linked global folder.
+alwaysApply: true
+---
+
+# bootstrap: load global rules by explicit path
+
+At the start of each chat in this project:
+
+1) Load global rules from this folder (recursively):
+- C:\Projects\Simplified_Error_Registry\.cursor\rules\global
+
+2) Enumerate all *.mdc files under that folder, then read each one.
+
+3) If you cannot enumerate the folder, at minimum read these two files:
+- C:\Projects\Simplified_Error_Registry\.cursor\rules\global\rules.mdc
+- C:\Projects\Simplified_Error_Registry\.cursor\rules\global\ports.mdc
+
+4) Confirm you will follow the loaded rules in this chat.
+
+If you cannot read them, say so and ask the user to run scripts\\verify_symlinks.ps1.
+

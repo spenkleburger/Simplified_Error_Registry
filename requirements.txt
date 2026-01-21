@@ -1,0 +1,77 @@
+# ============================================================================
+# Core Project Dependencies
+# ============================================================================
+# Uncomment the packages you need for your project
+# Use version constraints (>=) for flexibility
+# After installation, run: pip freeze > requirements.txt (for exact pins)
+# ============================================================================
+
+# ============================================================================
+# Environment & Configuration
+# ============================================================================
+python-dotenv>=1.0.0  # Load environment variables from .env file
+
+# ============================================================================
+# Logging
+# ============================================================================
+# loguru>=0.7.0  # Modern, feature-rich logging (recommended over standard logging)
+# logging>=0.7.0  # Standard logging library
+
+# ============================================================================
+# HTTP Requests & APIs
+# ============================================================================
+requests>=2.31.0      # Synchronous HTTP library (most common)
+# httpx>=0.24.0         # Async HTTP library (modern alternative)
+
+# ============================================================================
+# Data Handling & Analysis
+# ============================================================================
+# pandas>=2.0.0        # Data manipulation and analysis
+# numpy>=1.24.0        # Numerical computing (often needed with pandas)
+
+# ============================================================================
+# Data Validation & Serialization
+# ============================================================================
+# pydantic>=2.0.0      # Data validation using Python type annotations
+# PyYAML>=6.0          # YAML parser and emitter
+
+# ============================================================================
+# Database
+# ============================================================================
+# psycopg2-binary>=2.9.0  # PostgreSQL adapter
+# sqlalchemy>=2.0.0        # SQL toolkit and ORM
+
+# ============================================================================
+# Date & Time
+# ============================================================================
+python-dateutil>=2.8.0  # Extensions to the standard datetime module
+pytz>=2023.3             # Timezone definitions
+
+# ============================================================================
+# Utilities
+# ============================================================================
+tqdm>=4.65.0         # Progress bars for loops
+# click>=8.1.0         # Command-line interface creation
+# python-slugify>=8.0.0  # Generate URL-friendly slugs
+
+# ============================================================================
+# File Processing
+# ============================================================================
+# openpyxl>=3.1.0      # Read/write Excel files (.xlsx)
+# Pillow>=10.0.0       # Image processing library
+
+# ============================================================================
+# Web Frameworks (if building web apps)
+# ============================================================================
+fastapi>=0.100.0     # Modern, fast web framework
+flask>=2.3.0         # Lightweight web framework
+# django>=4.2.0        # Full-featured web framework
+
+# ============================================================================
+# Type Stubs (for mypy type checking)
+# ============================================================================
+# Install these if you use the corresponding packages and want type checking
+types-requests>=2.31.0           # If using requests
+# types-python-dateutil>=2.8.0    # If using python-dateutil
+# types-PyYAML>=6.0               # If using PyYAML
+

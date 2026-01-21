@@ -1,0 +1,40 @@
+# ============================================================================
+# Development Tools - Essential for all projects
+# ============================================================================
+# Install these for every new project:
+#   pip install -r requirements-dev.txt
+#
+# These tools help with code quality, testing, and development workflow
+# ============================================================================
+
+# --- GER Runtime Dependencies (Required for Tools) ---
+pyperclip>=1.8.0      # Clipboard support for scaffolds/diagnostics
+requests>=2.31.0      # HTTP client for Ollama API connection
+ollama>=0.1.0         # Official client for Librarian operations
+
+# --- Code Quality Pipeline (Required by Smart Test Runner) ---
+# Code Formatting
+black>=24.0.0
+
+# Linting & Import Sorting (replaces flake8 + isort)
+ruff>=0.1.0
+
+# Type Checking
+mypy>=1.0.0
+types-requests>=2.31.0  # Type stubs for requests
+
+# --- Testing ---
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.11.0
+
+# --- Security Scanning ---
+bandit>=1.7.0
+pip-audit>=2.0.0
+
+# --- Environment & Dependency Management ---
+python-dotenv>=1.0.0
+pip-tools>=7.0.0
+
+# --- Task Automation ---
+taskipy>=1.11.0
