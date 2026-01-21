@@ -194,35 +194,36 @@ python -c "from src.consolidation_app.parser import parse_errors_and_fixes; from
 
 ---
 
-### Phase 1.4: Implement Basic Generators ⬜
+### Phase 1.4: Implement Basic Generators ✅
 **Priority:** Critical  
 **Estimated Time:** 3-4 hours  
-**Dependencies:** Phase 1.1, Phase 1.3
+**Dependencies:** Phase 1.1, Phase 1.3  
+**Completed:** 2026-01-21
 
 **Tasks:**
-- [ ] Create `src/consolidation_app/generator.py`
-  - [ ] Function `generate_fix_repo_markdown(entries: List[ErrorEntry]) -> str`
-    - [ ] Filter entries where `is_process_issue=False`
-    - [ ] Group by error signature (exact match for now)
-    - [ ] Generate header with metadata
-    - [ ] Generate entry sections with fixes ordered by success count
-    - [ ] Format code blocks, tags, metadata
-  - [ ] Function `generate_coding_tips_markdown(entries: List[ErrorEntry]) -> str`
-    - [ ] Filter entries where `is_process_issue=True`
-    - [ ] Group by rule category (extract from tags or issue type)
-    - [ ] Generate header with metadata
-    - [ ] Generate rule sections with examples
-    - [ ] Format good/bad examples
-  - [ ] Helper functions
-    - [ ] `format_code_block(code: str, language: str = "python") -> str`
-    - [ ] `format_tags(tags: List[str]) -> str`
-    - [ ] `format_timestamp(dt: datetime) -> str`
-- [ ] Create unit tests
-  - [ ] Test fix_repo generation with single entry
-  - [ ] Test fix_repo generation with multiple entries (same error)
-  - [ ] Test fix_repo generation with multiple entries (different errors)
-  - [ ] Test coding_tips generation with process issues
-  - [ ] Test empty entries (generate headers only)
+- [x] Create `src/consolidation_app/generator.py`
+  - [x] Function `generate_fix_repo_markdown(entries: List[ErrorEntry]) -> str`
+    - [x] Filter entries where `is_process_issue=False`
+    - [x] Group by error signature (exact match for now)
+    - [x] Generate header with metadata
+    - [x] Generate entry sections with fixes ordered by success count
+    - [x] Format code blocks, tags, metadata
+  - [x] Function `generate_coding_tips_markdown(entries: List[ErrorEntry]) -> str`
+    - [x] Filter entries where `is_process_issue=True`
+    - [x] Group by rule category (extract from tags or issue type)
+    - [x] Generate header with metadata
+    - [x] Generate rule sections with examples
+    - [x] Format good/bad examples
+  - [x] Helper functions
+    - [x] `format_code_block(code: str, language: str = "python") -> str`
+    - [x] `format_tags(tags: List[str]) -> str`
+    - [x] `format_timestamp(dt: datetime) -> str`
+- [x] Create unit tests
+  - [x] Test fix_repo generation with single entry
+  - [x] Test fix_repo generation with multiple entries (same error)
+  - [x] Test fix_repo generation with multiple entries (different errors)
+  - [x] Test coding_tips generation with process issues
+  - [x] Test empty entries (generate headers only)
 
 **Files to Create:**
 ```
@@ -241,10 +242,13 @@ tests/
 
 **Quick Start for Testing:**
 ```bash
-# Create test ErrorEntry objects
-# Run generator
-python -c "from src.consolidation_app.generator import generate_fix_repo_markdown; from src.consolidation_app.parser import ErrorEntry; entries = [...]; markdown = generate_fix_repo_markdown(entries); print(markdown)"
+pytest tests/test_consolidation_app_generator.py
 ```
+
+**Implementation Notes:**
+- `generate_fix_repo_markdown` groups entries by signature, reports aggregated metadata, and formats fix blocks with consistent code/timestamp formatting.
+- `generate_coding_tips_markdown` organizes agent rules by tag-derived categories and captures rationale, examples, and related errors for each rule.
+- Helper utilities enforce markdown-safe code blocks, tag lists, and ISO8601 timestamps while the new test suite guards grouping logic, ordering, and empty inputs.
 
 ---
 
