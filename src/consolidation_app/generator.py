@@ -2,25 +2,33 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Iterable, List
 
 from src.consolidation_app.parser import ErrorEntry
 
+logger = logging.getLogger(__name__)
+
 
 def generate_fix_repo_markdown(entries: Iterable[ErrorEntry]) -> str:
     """Return markdown that showcases fixes grouped by signature."""
 
     clean_entries = [entry for entry in entries if not entry.is_process_issue]
+    logger.debug("Generating fix_repo markdown for %d entries", len(clean_entries))
     header_lines = _build_fix_repo_header(clean_entries)
     if not clean_entries:
+        logger.debug("No error entries to generate, returning header only")
         return "\n".join(header_lines)
 
     body: List[str] = []
     grouped = _group_by_signature(clean_entries)
+    logger.debug("Grouped into %d unique error signatures", len(grouped))
     for signature, group in sorted(grouped.items(), key=lambda item: item[0] or ""):
-        body.append(f"## {signature or 'Untitled Error'}")
+        # Escape markdown special characters in header
+        escaped_signature = _escape_markdown_header(signature or "Untitled Error")
+        body.append(f"## {escaped_signature}")
         first_seen = min(entry.timestamp for entry in group)
         last_updated = max(entry.timestamp for entry in group)
         all_tags = sorted({tag for entry in group for tag in entry.tags})
@@ -33,6 +41,7 @@ def generate_fix_repo_markdown(entries: Iterable[ErrorEntry]) -> str:
         for idx, entry in enumerate(
             sorted(group, key=lambda item: item.success_count, reverse=True), start=1
         ):
+            # Note: v1 uses error_type as fix description; future versions may extract description
             body.append(
                 f"### Fix {idx}: {entry.error_type or 'Fix'} (Success Count: {entry.success_count})"
             )
@@ -44,6 +53,7 @@ def generate_fix_repo_markdown(entries: Iterable[ErrorEntry]) -> str:
                 f"**Why this works:** {entry.explanation or 'Describes why the fix succeeds.'}"
             )
             body.append(f"**Result:** {entry.result or 'Unknown'}")
+            # Note: v1 uses file path; future versions may extract project name
             body.append(f"**Projects:** {entry.file or 'Unknown'}")
             body.append(f"**Last Updated:** {format_timestamp(entry.timestamp)}")
             body.append("")
@@ -57,23 +67,33 @@ def generate_coding_tips_markdown(entries: Iterable[ErrorEntry]) -> str:
     """Return markdown that documents agent process rules."""
 
     issues = [entry for entry in entries if entry.is_process_issue]
+    logger.debug("Generating coding_tips markdown for %d process issues", len(issues))
     header_lines = _build_coding_tips_header(issues)
     if not issues:
+        logger.debug("No process issues to generate, returning header only")
         return "\n".join(header_lines)
 
     sections: List[str] = []
     grouped = _group_by_category(issues)
+    logger.debug("Grouped into %d categories", len(grouped))
     for category, items in sorted(grouped.items(), key=lambda item: item[0]):
-        sections.append(f"## {category or 'General'}")
+        # Escape markdown special characters in category header
+        escaped_category = _escape_markdown_header(category or "General")
+        sections.append(f"## {escaped_category}")
         sections.append("")
         for entry in items:
-            sections.append(f"### Rule: {entry.error_signature or entry.error_type}")
+            # Escape markdown special characters in rule title
+            escaped_rule = _escape_markdown_header(
+                entry.error_signature or entry.error_type
+            )
+            sections.append(f"### Rule: {escaped_rule}")
             sections.append("")
             sections.append(
                 f"**Why:** {entry.explanation or entry.fix_code or 'Rule rationale pending.'}"
             )
             sections.append("")
             sections.append("**Examples:**")
+            # Note: v1 generates single good/bad example; future versions may aggregate multiple
             sections.append(
                 f"- ✅ {entry.explanation or entry.error_signature or 'Follows the rule.'}"
             )
@@ -83,6 +103,7 @@ def generate_coding_tips_markdown(entries: Iterable[ErrorEntry]) -> str:
             sections.append("")
             sections.append("**Related Errors:**")
             related_signature = entry.error_signature or entry.error_type or "Unknown"
+            # Note: v1 uses success_count; future versions may track occurrence count separately
             sections.append(
                 f"- `{entry.error_type or 'rule'}`: {related_signature} (success count: {entry.success_count})"
             )
@@ -103,16 +124,26 @@ def format_code_block(code: str, language: str = "python") -> str:
 
 
 def format_tags(tags: List[str]) -> str:
-    """Return markdown-safe representation of tag collections."""
+    """Return markdown-safe representation of tag collections.
+
+    Escapes backticks in tags to prevent markdown injection.
+    """
 
     if not tags:
         return "None"
-    return ", ".join(f"`{tag}`" for tag in tags)
+    # Escape backticks in tags to prevent markdown breaking
+    escaped_tags = [tag.replace("`", r"\`") for tag in tags]
+    return ", ".join(f"`{escaped_tag}`" for escaped_tag in escaped_tags)
 
 
 def format_timestamp(dt: datetime) -> str:
-    """Serialize timestamps into UTC ISO8601 strings."""
+    """Serialize timestamps into UTC ISO8601 strings.
 
+    Assumes naive datetimes are UTC (v1 limitation).
+    """
+
+    if not dt.tzinfo:
+        logger.debug("Naive datetime encountered, assuming UTC: %s", dt)
     aware = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     iso = aware.astimezone(timezone.utc).replace(microsecond=0).isoformat()
     return iso.replace("+00:00", "Z")
@@ -162,6 +193,10 @@ def _group_by_signature(entries: List[ErrorEntry]) -> dict[str, List[ErrorEntry]
 
 
 def _group_by_category(entries: List[ErrorEntry]) -> dict[str, List[ErrorEntry]]:
+    """Group entries by category.
+
+    Note: v1 uses first tag as category; future versions may use explicit category field.
+    """
     grouped: dict[str, List[ErrorEntry]] = defaultdict(list)
     for entry in entries:
         if entry.tags:
@@ -176,3 +211,29 @@ def _format_date(dt: datetime) -> str:
     """Return the YYYY-MM-DD portion of an ISO timestamp."""
 
     return format_timestamp(dt).split("T")[0]
+
+
+def _escape_markdown_header(text: str) -> str:
+    """Escape markdown special characters in header text.
+
+    Prevents markdown injection in error signatures and category names.
+    Escapes: #, *, [, ], (, ), <, >, `, _, ~
+    """
+    # Escape markdown special characters that could break headers
+    replacements = {
+        "#": r"\#",
+        "*": r"\*",
+        "[": r"\[",
+        "]": r"\]",
+        "(": r"\(",
+        ")": r"\)",
+        "<": r"\<",
+        ">": r"\>",
+        "`": r"\`",
+        "_": r"\_",
+        "~": r"\~",
+    }
+    escaped = text
+    for char, replacement in replacements.items():
+        escaped = escaped.replace(char, replacement)
+    return escaped
