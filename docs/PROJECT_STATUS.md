@@ -1,6 +1,6 @@
 ---
 # YAML frontmatter for Idea Engine parsing
-# 
+#
 # Format Requirements:
 # - All values must be actual data (replace example values with real data)
 # - health_status must be one of: "on_track", "at_risk", or "blocked" (no emoji)
@@ -8,26 +8,22 @@
 # - Numeric values (steps, progress, phases) must be integers
 # - Idea Engine automatically parses this section for quick status display
 #
-# EXAMPLE VALUES - Replace with your actual project data:
-
-
 ---
-# Project Status Template
 
-project_name: "Idea Engine"  # Replace with your project name
-current_step: 3
-total_steps: 5
-overall_progress: 60
-phases_completed: 12
-phases_total: 20
+project_name: "Simplified Error Registry"
+current_step: 1
+total_steps: 6
+overall_progress: 0
+phases_completed: 0
+phases_total: 28
 last_updated: "2025-01-15"
 health_status: "on_track"
 ---
 
 ## Current Status
 
-**Current Step:** Step 3 of 5  
-**Progress:** 60% (12/20 phases)  
+**Current Step:** Step 1 of 6  
+**Progress:** 0% (0/28 phases)  
 **Health:** 🟢 On Track  
 **Last Updated:** 2025-01-15
 
@@ -35,34 +31,45 @@ health_status: "on_track"
 
 ## Step Progress Summary
 
-- **Step 1: Foundation** - ✅ Complete (4/4 phases)
-  - 1.1 Docker Setup: ✅
-  - 1.2 API Foundation: ✅
-  - 1.3 Authentication: ✅
-  - 1.4 Frontend Foundation: ✅
+- **Step 1: Core File Formats and Bootstrap** - ⬜ Not Started (0/4 phases)
+  - 1.1 Define Markdown Formats: ⬜
+  - 1.2 Implement Bootstrap Script: ⬜
+  - 1.3 Implement Parser Module: ⬜
+  - 1.4 Implement Basic Generators: ⬜
 
-- **Step 2: Idea CRUD** - ✅ Complete (4/4 phases)
-  - 2.1 Idea API: ✅
-  - 2.2 Dashboard: ✅
-  - 2.3 Detail Page: ✅
-  - 2.4 Status Management: ✅
+- **Step 2: Agent Integration and Test Output Verification** - ⬜ Not Started (0/5 phases)
+  - 2.1 Create errors.mdc Rule: ⬜
+  - 2.2 Create coding-tips.mdc Rule: ⬜
+  - 2.3 Test Output Capture Verification: ⬜
+  - 2.4 Create Optional test-and-fix.mdc Command: ⬜
+  - 2.5 End-to-End Agent Workflow Testing: ⬜
 
-- **Step 3: Notes & Repository** - 🟡 In Progress (2/4 phases)
-  - 3.1 Notes System: ✅
-  - 3.2 Notes UI: ✅
-  - 3.3 Repository Linking: 🟡
-  - 3.4 Project Scanning: ⬜
+- **Step 3: Consolidation App - Core** - ⬜ Not Started (0/6 phases)
+  - 3.1 Discovery Module: ⬜
+  - 3.2 Parser Integration: ⬜
+  - 3.3 Basic Deduplication (Exact Match): ⬜
+  - 3.4 Basic Tagging (Rule-Based): ⬜
+  - 3.5 Writer Module: ⬜
+  - 3.6 Main Consolidation Workflow: ⬜
 
-- **Step 4: Research Interface** - ⬜ Not Started
-  - 4.1 OpenAI Integration: ⬜
-  - 4.2 Research Sessions: ⬜
-  - 4.3 Research UI: ⬜
-  - 4.4 Cost Tracking: ⬜
+- **Step 4: Consolidation App - AI Integration** - ⬜ Not Started (0/5 phases)
+  - 4.1 LLM Client Integration: ⬜
+  - 4.2 AI Deduplication: ⬜
+  - 4.3 AI Tagging: ⬜
+  - 4.4 Fix Merging Logic: ⬜
+  - 4.5 Rule Extraction: ⬜
 
-- **Step 5: Mobile & Tunnel** - ⬜ Not Started
-  - 5.1 Mobile Responsive UI: ⬜
-  - 5.2 Cloudflare Tunnel: ⬜
-  - 5.3 Mobile Testing: ⬜
+- **Step 5: Docker, Config, and Scheduling** - ⬜ Not Started (0/4 phases)
+  - 5.1 Docker Container Setup: ⬜
+  - 5.2 ENV-First Configuration: ⬜
+  - 5.3 Cron Scheduler Integration: ⬜
+  - 5.4 Logging and Monitoring: ⬜
+
+- **Step 6: Testing and Refinement** - ⬜ Not Started (0/4 phases)
+  - 6.1 End-to-End Testing: ⬜
+  - 6.2 Performance Testing: ⬜
+  - 6.3 Portability Testing: ⬜
+  - 6.4 Documentation: ⬜
 
 **Status Legend:**
 - ✅ Complete
@@ -78,36 +85,38 @@ health_status: "on_track"
 ## Current Blockers
 
 **Active Blockers:**
-- None *(or remove this section if no blockers)*
+- None
 
 **Recently Resolved:**
 *(Leave blank if none. Add resolved blockers here with format:)*
-- ✅ [Blocked item description] - Resolved: YYYY-MM-DD
+- *(None yet)*
 
 ---
 
 ## Recent Milestones
 
-- 2025-01-15: Phase 3.2 Complete - Notes UI implemented
-- 2025-01-14: Phase 3.1 Complete - Notes API endpoints working
-- 2025-01-10: Step 2 Complete - Idea CRUD fully functional
+- 2025-01-15: Initial implementation plan created with all 6 steps and 28 phases
+- 2025-01-15: Project plan (SER_PLAN.md) and implementation plan (SER_IMPLEMENTATION_PLAN.md) created
+- 2025-01-15: Documentation templates populated with SER-specific content
 
 ---
 
 ## Next Steps
 
 **Immediate Priorities:**
-- Complete Phase 3.3 (Repository Linking)
-- Begin Phase 3.4 (Active Project Scanning)
-- Start Step 4 (Research Interface)
+- Begin Step 1: Core File Formats and Bootstrap
+- Start Phase 1.1: Define markdown formats for all three files
+- Create template `.errors_fixes/` folder structure
+- Begin Phase 1.2: Implement bootstrap script
 
 ---
 
 ## Related Documentation
 
-- `{PROJECT_NAME}_IMPLEMENTATION_PLAN.md` - Detailed task lists (replace "Idea_Engine" with your project name)
-- `README.md` - Project overview and setup
-- `docs/PORTS.md` - Port configuration (if applicable)
+- `docs/SER_IMPLEMENTATION_PLAN.md` - Detailed task lists and phase breakdowns
+- `docs/SER_PLAN.md` - Project overview, architecture, and design decisions
+- `docs/SIMPLIFIED_ERROR_REGISTRY_V2.md` - Complete system specification
+- `README.md` - Project overview and setup instructions
 
 ---
 
@@ -119,6 +128,7 @@ health_status: "on_track"
 4. Tracks milestones for activity timeline
 5. Auto-updates when phases complete (if configured)
 6. Calculates "days since last activity" from `last_updated` field
+
 **Note:** If YAML frontmatter is invalid or missing, Idea Engine will skip parsing this file and log an error.
 
 **How to Update This Document:**
@@ -131,19 +141,23 @@ health_status: "on_track"
 6. Update next steps to reflect current priorities
 7. Keep phase completion dates minimal (only add when completed)
 
-**Template Usage:**
+---
 
-1. Copy this file to your project: `cp PROJECT_STATUS.md docs/PROJECT_STATUS.md`
-2. **Replace YAML frontmatter** with your actual project values:
-   - Replace `"Idea Engine"` with your project name
-   - Set `current_step`, `total_steps`, `overall_progress`, etc. to actual values
-   - Set `health_status` to `"on_track"`, `"at_risk"`, or `"blocked"`
-3. **Replace markdown placeholders:**
-   - Replace `Idea_Engine` references in documentation links with your project name
-   - Update step and phase names to match your implementation plan
-4. **Customize content:**
-   - Update step progress summary with your actual steps/phases
-   - Add your project's milestones and blockers
-5. Idea Engine will automatically parse and monitor this file when you link your project directory
+**Project Overview:**
 
-**Important:** Ensure YAML frontmatter is valid (no placeholders, proper formatting) or Idea Engine cannot parse it.
+The Simplified Error Registry (SER) is a streamlined, markdown-based approach for personal-scale error tracking and agent process documentation. It replaces complex JSON-based systems with a simple three-file structure:
+
+- `errors_and_fixes.md` - Session log (ephemeral, cleared after consolidation)
+- `fix_repo.md` - Consolidated fixes (read-only during dev, updated by consolidation app)
+- `coding_tips.md` - Agent process rules (read-only during dev, updated by consolidation app)
+
+The system includes a daily consolidation app that processes session logs, deduplicates errors using AI, generates tags, and produces consolidated files. Agent integration is provided via Cursor rules that enable proactive error prevention and reactive error resolution.
+
+**Key Features:**
+- Human-readable markdown files
+- AI-powered semantic deduplication
+- Success-based fix ordering
+- Agent process tracking
+- Self-contained portable folder
+- Docker containerization
+- ENV-first configuration

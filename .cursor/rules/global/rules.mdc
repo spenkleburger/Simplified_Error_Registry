@@ -19,7 +19,7 @@ alwaysApply: true
 
 ### Scripts
 - All scripts must contain a header section with the file name, description and iterative version number
-- Dependencies: If new packages used → update `requirements.in`,  `requirements.txt` or `requirements-dev.txt`
+- Dependencies: If new packages used, always install in the local .venv → update `requirements.in`,  `requirements.txt` or `requirements-dev.txt`
 
 ### Zero Tech Debt
 Do not introduce new technical debt. Refactor as you go.
@@ -47,12 +47,13 @@ Do not introduce new technical debt. Refactor as you go.
 - **After generating or modifying code**: Run `black <touched files>` and `ruff check --fix <touched files>`
 - Fix all formatting and linting errors before completing the task
 
-### Test Creation
+### Tests
 - **After creating new code**: Create appropriate tests for new/modified code since last git commit (if not already created)
 - **Test types**:
   - **Unit tests**: Individual functions/methods (isolated, mocked dependencies). Located in `tests/test_<module_name>.py`
   - **Integration tests**: Workflows, service interactions, database operations, API endpoints. Use `@pytest.mark.integration`. Located in `tests/integration/test_<feature>.py` or `tests/test_<feature>_integration.py`
-- **After creating tests**: Remind user to run `task test:backend`, `task test:frontend`, and/or `task test:integration` (as applicable). Do NOT run the tests yourself until required to do so by the user or another error-specific rule.
+- **After creating tests**: Remind user to run `task test:backend`, `task test:frontend`, and/or `task test:integration` (as applicable).
+- **No autonomous testing:** Do NOT run tests autonomously until required to do so by user or other error-specific rule.
 
 ## Post-Change Workflow Reminders
 
