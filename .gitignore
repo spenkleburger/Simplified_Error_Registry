@@ -49,6 +49,7 @@ MANIFEST
 .pytest_cache/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .nox/
@@ -129,3 +130,4 @@ data/
 # Python Version Management
 # ============================================================================
 .python-version
+.errors_fixes/

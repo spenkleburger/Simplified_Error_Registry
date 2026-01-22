@@ -1,0 +1,388 @@
+---
+description: Error resolution protocol using Simplified Error Registry. Apply when user pastes test errors from "task test:*" commands, reports "There is an error in...", provides test failure output, or requests error fixes. Check .errors_fixes/ files for fixes before attempting solutions.
+alwaysApply: false
+---
+
+# Error Resolution Protocol
+
+## Role
+
+**Responder**: User runs tests and provides error output. Agent provides code fixes and documents results.
+
+**Agent Responsibilities**:
+- Identify errors from test output or user reports
+- Lookup fixes using three-step lookup order
+- Apply fixes (highest success count first)
+- Document all attempts in `.errors_fixes/errors_and_fixes.md`
+- Advise appropriate test commands after code changes
+
+---
+
+## Test Generation Requirements
+
+### Generate Tests for New Code
+
+**CRITICAL**: When you create or modify code, you MUST also generate corresponding tests.
+
+1. **For New Files**:
+   - Create corresponding test file(s) in the appropriate test directory
+   - For `src/backend/api.py` → Create `tests/test_api.py` or `tests/backend/test_api.py`
+   - For `src/frontend/components/Button.tsx` → Create `tests/frontend/components/Button.test.tsx`
+   - For integration code → Create `tests/integration/test_<feature>.py`
+
+2. **For Modified Files**:
+   - Check if test file exists
+   - If missing: Create test file
+   - If exists: Update test file to cover new functionality
+
+3. **Test Coverage Requirements**:
+   - **Unit Tests**: Test individual functions/methods (isolated, mocked dependencies)
+   - **Integration Tests**: Test component interactions (place in `tests/integration/`)
+   - **Coverage**: Happy path, edge cases (None/Empty inputs), and mocked external calls
+
+4. **Test File Naming**:
+   - Python: `test_<module_name>.py` (mirrors source structure)
+   - TypeScript/JavaScript: `<component>.test.tsx` or `<component>.test.ts`
+   - Integration: `tests/integration/test_<feature>.py`
+
+---
+
+## Advise Test Commands
+
+**After generating or modifying code**, you MUST advise the user which tests to run:
+
+1. **Identify Code Type**:
+   - Backend code (Python, APIs, services) → Advise: `task test:backend` or `task test` (if backend-only project)
+   - Frontend code (React, Vue, TypeScript UI) → Advise: `task test:frontend`
+   - Integration code (cross-component, end-to-end) → Advise: `task test:integration`
+   - Mixed changes → Advise: Run all relevant test suites
+
+2. **Format of Advice**:
+   ```
+   **Next Steps:**
+   - Run tests: `task test:backend` (for backend changes)
+   - Run tests: `task test:frontend` (for frontend changes)
+   - Run tests: `task test:integration` (for integration changes)
+   - Or run all: `task test` (if project supports unified test command)
+   ```
+
+3. **When to Advise**:
+   - After creating new files
+   - After modifying existing files
+   - After refactoring code
+   - After fixing errors (advise re-running tests)
+
+**Example**:
+```
+I've created the new payment processing module at `src/payment.py` and corresponding tests at `tests/test_payment.py`.
+
+**Next Steps:**
+- Run backend tests: `task test:backend`
+- The tests cover happy path, edge cases, and mocked external API calls.
+```
+
+---
+
+## Test Execution Strategy
+
+### Default Behavior: Manual Test Execution
+
+**Do NOT run tests automatically after code changes.**
+
+- Write code
+- Wait for user to run `task test:*` command
+- Wait for user to provide error output if tests fail
+- This gives user control and reduces token usage
+
+### Optional: Command-Based Auto-Fix
+
+**If user runs `.cursor/command test-and-fix` (from global commands):**
+
+1. Run `task test` automatically
+2. If tests pass:
+   - Inform user: "All tests passed! ✅"
+   - Document success in `.errors_fixes/errors_and_fixes.md` (if any fixes were applied)
+   - Stop execution
+
+3. If tests fail:
+   - Parse errors from test output
+   - Fix all errors using Simplified Error Registry pipeline (see Fix Loop below)
+   - Document all fixes in `.errors_fixes/errors_and_fixes.md`
+   - Run `task test` again
+   - Repeat until all tests pass OR max iterations (5) reached
+   - Report final status to user
+
+### Fix Loop (Command-Based Mode)
+
+**Maximum 5 iterations per command:**
+
+1. For each error found:
+   - Check `.errors_fixes/errors_and_fixes.md` for recent session errors
+   - Check `.errors_fixes/fix_repo.md` for consolidated fixes
+   - Check `.errors_fixes/coding_tips.md` for agent process rules
+   - Apply fix with highest success count
+   - Document attempt in `.errors_fixes/errors_and_fixes.md`
+
+2. Run `task test` again
+
+3. Stop conditions:
+   - All tests pass → Report success
+   - Same error repeats 3 times → Stop and report to user
+   - Maximum iterations (5) reached → Stop and report status
+   - New errors appear → Continue fixing
+
+---
+
+## Lookup Strategy
+
+**Three-step lookup order** - Check files in this exact sequence:
+
+1. **First**: Check `.errors_fixes/errors_and_fixes.md` for recent session errors
+   - Look for the same or similar error in today's session
+   - If found, check if a fix was already attempted
+   - Use this to avoid repeating failed fixes
+
+2. **Second**: Check `.errors_fixes/fix_repo.md` for consolidated **code fixes**
+   - Use when you have a runtime/test error. Search by error type or tags
+   - Try fixes in order of success count (highest first)
+   - If first fix fails, try the next one
+   - Contains consolidated fixes from previous sessions
+
+3. **Third**: Check `.errors_fixes/coding_tips.md` for **agent process rules**
+   - Process/workflow rules: paths, commands, Docker, conventions
+   - Check proactively before coding to avoid causing errors
+   - Contains rules extracted from agent process issues
+
+**When to use each file:**
+- `errors_and_fixes.md`: Recent session attempts (ephemeral, cleared daily)
+- `fix_repo.md`: Consolidated code fixes (read-only during dev, updated by consolidation app)
+- `coding_tips.md`: Agent process rules (read-only during dev, updated by consolidation app)
+
+---
+
+## Fix Application Workflow
+
+### Step 1: Identify Error
+
+**Manual Mode**: Wait for the user to provide the error log. Do not guess the error.
+
+**Command Mode**: Parse errors from `task test` output automatically.
+
+### Step 2: Lookup Fixes
+
+Follow the three-step lookup order:
+1. Check `.errors_fixes/errors_and_fixes.md` for recent attempts
+2. Check `.errors_fixes/fix_repo.md` for consolidated fixes
+3. Check `.errors_fixes/coding_tips.md` for process rules
+
+### Step 3: Apply Fix
+
+- If fix found: Apply the fix with highest success count
+- If multiple fixes: Try them in order (highest success count first)
+- If no fix found: Analyze error and create new fix
+
+### Step 4: Document Result
+
+**Manual Mode** (after user runs tests):
+
+**If test passes:**
+- Document in `.errors_fixes/errors_and_fixes.md`:
+  - Error signature (error type and message)
+  - File and line number
+  - Fix applied (code before/after)
+  - Explanation of why fix works
+  - Result: ✅ Solved
+  - Success count: 1 (or increment if same fix)
+  - Test command used (e.g., `task test:backend`)
+  - Tags (auto-generated or manual)
+
+**If test fails:**
+- Document in `.errors_fixes/errors_and_fixes.md`:
+  - Error signature
+  - Fix attempted
+  - Result: ❌ Failed
+  - Try next fix from `fix_repo.md` (if available)
+
+**Command Mode** (automatic):
+- Document each fix attempt in `.errors_fixes/errors_and_fixes.md` immediately
+- Continue fixing until all pass or limits reached
+- Report final summary to user
+
+### Step 5: Advise Test Commands
+
+**After generating or modifying code**, always advise the user which tests to run:
+
+- **Backend changes** → Advise: `task test:backend` or `task test` (if backend-only)
+- **Frontend changes** → Advise: `task test:frontend`
+- **Integration changes** → Advise: `task test:integration`
+- **Mixed changes** → Advise: Run all relevant test suites
+
+**Format**:
+```
+**Next Steps:**
+- Run tests: `task test:backend` (for backend changes)
+- Run tests: `task test:frontend` (for frontend changes)
+- Run tests: `task test:integration` (for integration changes)
+```
+
+### Step 6: Session Tracking
+
+- Track all errors and fixes in current session in `.errors_fixes/errors_and_fixes.md`
+- Consolidation app processes this file daily at 2 AM
+- `### Error:` entries → consolidated to `fix_repo.md`
+- `### Agent Process Issue:` entries → consolidated to `coding_tips.md`
+- File contents are cleared after consolidation (file is kept for next session)
+
+---
+
+## Preventive Checks
+
+**Before writing code or making changes**, check `.errors_fixes/coding_tips.md` for:
+
+- Path handling rules (use `pathlib.Path`, avoid hardcoded paths)
+- Command format rules (check taskipy config in `pyproject.toml`)
+- String formatting best practices
+- Docker networking rules
+- File I/O patterns (encoding, line endings)
+- Any other process rules that might prevent errors
+
+**Apply these rules proactively** to avoid common mistakes that lead to errors.
+
+**When to check:**
+- Before writing new code
+- Before using file paths
+- Before running commands
+- Before Docker work
+- Before making changes that might trigger known issues
+
+---
+
+## Process Rules
+
+**Reference `.errors_fixes/coding_tips.md` for current rules.**
+
+Common rule categories:
+- **Path Handling**: Use `pathlib.Path`, avoid hardcoded paths, handle cross-platform differences
+- **Commands**: Check `pyproject.toml` for task commands, use correct format
+- **Formatting**: Follow project standards (black, ruff), use UTF-8 encoding, LF line endings
+- **Docker**: Network configuration, volume mounts, environment variables
+- **File I/O**: Encoding, line endings, error handling
+- **Project-Specific**: Conventions, patterns, best practices
+
+**How to use:**
+1. Check `.errors_fixes/coding_tips.md` before coding
+2. Apply relevant rules proactively
+3. If you encounter a process issue, document it as `### Agent Process Issue:` in `errors_and_fixes.md`
+4. Consolidation app will extract rules and update `coding_tips.md`
+
+---
+
+## Validation
+
+### Manual Mode: Ask User to Run Tests
+
+**Default behavior** - Do NOT run tests automatically:
+
+1. After applying fix, ask user to run appropriate test command
+2. Wait for user to provide test results
+3. If tests pass: Document success in `.errors_fixes/errors_and_fixes.md`
+4. If tests fail: Document failure, try next fix (if available)
+
+**Example**:
+```
+I've applied the fix from fix_repo.md. Please run:
+
+`task test:backend`
+
+And share the test output so I can verify the fix worked.
+```
+
+### Command Mode: Run Tests Automatically
+
+**Only when user runs `.cursor/command test-and-fix`:**
+
+1. Run `task test` automatically
+2. Parse errors from output
+3. Apply fixes using lookup order
+4. Document in `.errors_fixes/errors_and_fixes.md`
+5. Repeat until all pass or limits reached
+6. Report final status
+
+**Safety Limits:**
+- Maximum iterations: 5
+- Same error retry limit: 3
+- Stop on: All tests pass, max iterations reached, same error repeats 3 times
+
+---
+
+## File Paths
+
+All `.errors_fixes/` files are located at:
+- `{project_root}/.errors_fixes/errors_and_fixes.md` - Session log (ephemeral)
+- `{project_root}/.errors_fixes/fix_repo.md` - Consolidated fixes (read-only during dev)
+- `{project_root}/.errors_fixes/coding_tips.md` - Agent process rules (read-only during dev)
+
+Use `pathlib.Path` to construct paths. Never hardcode paths.
+
+---
+
+## Entry Format
+
+When documenting in `errors_and_fixes.md`, use this format:
+
+```markdown
+### Error: ErrorType: Error message
+
+**Timestamp:** YYYY-MM-DDTHH:MM:SSZ  
+**File:** `path/to/file.py`  
+**Line:** 42  
+**Error Type:** `ErrorType`  
+**Tags:** `tag1`, `tag2`, `tag3`
+
+**Error Context:**
+```
+Traceback (most recent call last):
+  File "path/to/file.py", line 42, in function_name
+    code_that_caused_error
+ErrorType: Error message
+```
+
+**Fix Applied:**
+```python
+# Before
+code_before_fix
+
+# After
+code_after_fix
+```
+
+**Explanation:** Brief explanation of why the fix works.
+
+**Result:** ✅ Solved  
+**Success Count:** 1  
+**Test Command:** `task test:backend`  
+**Test Result:** All tests passed
+```
+
+For agent process issues:
+
+```markdown
+### Agent Process Issue: Issue description
+
+**Timestamp:** YYYY-MM-DDTHH:MM:SSZ  
+**Issue Type:** `agent-process`  
+**Tags:** `agent-process`, `category-tag`, `specific-tag`
+
+**Issue Description:**
+Detailed description of the agent process issue that occurred.
+
+**Rule Established:**
+The rule or guideline that should be followed to avoid this issue in the future.
+
+**Example:**
+- ✅ Good example
+- ✅ Another good example
+- ❌ Bad example to avoid
+
+**Result:** ✅ Documented
+```

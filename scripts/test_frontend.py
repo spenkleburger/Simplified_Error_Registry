@@ -3,8 +3,35 @@
 # Usage: python scripts/test_frontend.py
 # This detects frontend files changed since last commit and runs appropriate tests
 # Output is automatically copied to clipboard for easy sharing
+#
+# ============================================================================
+# PROJECT-SPECIFIC CUSTOMIZATION
+# ============================================================================
+# When copying this script to your project template, customize these sections:
+#
+# 1. FRONTEND PATTERNS (line ~275):
+#    - Update `frontend_patterns` list to match your frontend directory structure
+#    - Default: ["frontend/src/", "frontend/package.json", etc.]
+#
+# 2. FRONTEND DIRECTORY (line ~331):
+#    - Update frontend directory path if different from "frontend/"
+#    - Default: project_root / "frontend"
+#
+# 3. TEST FILE MAPPING (line ~294):
+#    - Update `map_frontend_files_to_tests()` function to match your test naming
+#    - Default: src/pages/Login.tsx -> src/pages/__tests__/Login.test.tsx
+#
+# 4. COMMAND HEADER (line ~191):
+#    - Update command string to match your task runner command
+#    - Default: "Command: task test:frontend"
+#
+# The core functionality (error extraction, ANSI stripping, clipboard copying)
+# is generic and works for any project using Vitest. Only the above sections
+# need customization.
+# ============================================================================
 
 import os
+import re
 import subprocess  # nosec B404 - only invoked with trusted developer tools
 import sys
 from io import StringIO
@@ -54,6 +81,146 @@ class OutputCapture:
         sys.stderr = self.original_stderr
 
 
+def extract_error_sections(full_output: str) -> str:
+    """
+    Extract only the relevant error sections from test output.
+
+    For Vitest (frontend), captures:
+    - FAIL sections (test failures)
+    - ERROR sections (test errors)
+    - Test summary with failures
+
+    For pytest-style output, captures:
+    - === FAILURES === section
+    - === ERRORS === section
+    - === short test summary info === section
+
+    Excludes:
+    - Passing test output
+    - Test collection info
+    - Coverage reports
+    - Other irrelevant sections
+    """
+    lines = full_output.split("\n")
+    extracted = []
+    in_failures = False
+    in_errors = False
+    in_summary = False
+    capture_buffer = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check for pytest-style section markers (pytest uses === with many equals signs)
+        # Format: ================================== FAILURES ===================================
+        if "FAILURES" in line and "===" in line:
+            in_failures = True
+            in_errors = False
+            in_summary = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif "ERRORS" in line and "===" in line:
+            in_errors = True
+            in_failures = False
+            in_summary = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif "short test summary info" in line and "===" in line:
+            in_summary = True
+            in_failures = False
+            in_errors = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        # Check for Vitest-style failure markers
+        elif "FAIL" in line and ("test" in line.lower() or "spec" in line.lower()):
+            # Vitest failure line - capture this and following error details
+            in_failures = True
+            extracted.append(line)
+        elif in_failures or in_errors or in_summary:
+            # Continue capturing until next section or end
+            # Check if this line is a new section marker
+            is_failures_marker = "FAILURES" in line and "===" in line
+            is_errors_marker = "ERRORS" in line and "===" in line
+            is_summary_marker = "short test summary" in line and "===" in line
+
+            # If we hit a different section marker, switch to that section
+            if is_failures_marker and not in_failures:
+                # Switching to failures section
+                in_failures = True
+                in_errors = False
+                in_summary = False
+                extracted.append(line)
+            elif is_errors_marker and not in_errors:
+                # Switching to errors section
+                in_errors = True
+                in_failures = False
+                in_summary = False
+                extracted.append(line)
+            elif is_summary_marker and not in_summary:
+                # Switching to summary section
+                in_summary = True
+                in_failures = False
+                in_errors = False
+                extracted.append(line)
+            elif is_failures_marker or is_errors_marker or is_summary_marker:
+                # Same section marker repeated (shouldn't happen, but handle it)
+                extracted.append(line)
+            elif line.strip() and not line.strip().startswith("PASS"):
+                # Capture non-empty lines that aren't passing tests
+                extracted.append(line)
+            elif not line.strip():
+                # Empty line - include it for formatting
+                extracted.append(line)
+        else:
+            # Not in any error section
+            # Check for pytest format: === with FAILURES/ERRORS/short test summary
+            if (
+                ("===" in line and "FAILURES" in line)
+                or ("===" in line and "ERRORS" in line)
+                or ("===" in line and "short test summary" in line)
+            ):
+                capture_buffer.append(line)
+            elif capture_buffer:
+                capture_buffer = []
+
+        i += 1
+
+    if capture_buffer:
+        extracted.extend(capture_buffer)
+
+    result = "\n".join(extracted)
+
+    # If no error sections found, return empty (tests passed)
+    # Check for pytest format (=== with FAILURES/ERRORS) or Vitest FAIL markers
+    if (
+        ("FAILURES" not in result or "===" not in result)
+        and ("ERRORS" not in result or "===" not in result)
+        and "FAIL" not in result
+    ):
+        return ""
+
+    # Strip ANSI color codes for cleaner clipboard output
+    # ANSI escape sequences: \x1b[ or \033[ followed by numbers and 'm'
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m|\033\[[0-9;]*m")
+    result = ansi_escape.sub("", result)
+
+    # Add header with test command info
+    # CUSTOMIZE: Update command string to match your task runner
+    header = "Test Output (Error Sections Only)\n"
+    header += "=" * 70 + "\n"
+    header += "Command: task test:frontend\n"  # ← CUSTOMIZE THIS
+    header += "=" * 70 + "\n\n"
+
+    return header + result
+
+
 def copy_to_clipboard(text: str) -> bool:
     """Copy text to clipboard. Returns True if successful."""
     try:
@@ -83,7 +250,14 @@ def copy_to_clipboard(text: str) -> bool:
             )
             process.communicate(input=text, timeout=5)
             return process.returncode == 0
-    except Exception:
+    except subprocess.TimeoutExpired:
+        print(f"⚠️  Clipboard operation timed out", file=sys.stderr)
+        return False
+    except FileNotFoundError as e:
+        print(f"⚠️  Clipboard command not found: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"⚠️  Clipboard operation failed: {e}", file=sys.stderr)
         return False
 
 
@@ -132,12 +306,13 @@ def get_changed_files():
 
 def filter_frontend_files(changed_files):
     """Filter changed files to only frontend TypeScript/TSX files."""
+    # CUSTOMIZE: Update these patterns to match your frontend directory structure
     frontend_patterns = [
         "frontend/src/",
         "frontend/package.json",
         "frontend/tsconfig.json",
         "frontend/vite.config.ts",
-    ]
+    ]  # ← CUSTOMIZE THIS LIST
 
     frontend_files = []
     for file in changed_files:
@@ -153,10 +328,13 @@ def filter_frontend_files(changed_files):
 
 def map_frontend_files_to_tests(changed_files):
     """Map changed frontend source files to their corresponding test files."""
+    # CUSTOMIZE: Update this function to match your test file naming conventions
     test_files = []
 
     for file in changed_files:
-        if not file.startswith("frontend/src/"):
+        if not file.startswith(
+            "frontend/src/"
+        ):  # ← CUSTOMIZE: Update if frontend path differs
             continue
 
         # Convert src/pages/Login.tsx -> src/pages/__tests__/Login.test.tsx
@@ -167,12 +345,13 @@ def map_frontend_files_to_tests(changed_files):
             base_name = relative_path.replace(".ts", "").replace(".tsx", "")
 
             # Try different test file patterns
+            # CUSTOMIZE: Update these patterns to match your test file naming
             test_patterns = [
                 f"frontend/src/{base_name}.test.ts",
                 f"frontend/src/{base_name}.test.tsx",
                 f"frontend/src/{base_name.replace('/', '/__tests__/')}.test.ts",
                 f"frontend/src/{base_name.replace('/', '/__tests__/')}.test.tsx",
-            ]
+            ]  # ← CUSTOMIZE: Add/remove patterns as needed
 
             for pattern in test_patterns:
                 test_path = project_root / pattern
@@ -188,7 +367,8 @@ def run_frontend_tests(changed_files=None):
     print("\n" + "=" * 70)
     print("🧪 Running Frontend Tests")
     print("=" * 70)
-    frontend_dir = project_root / "frontend"
+    # CUSTOMIZE: Update frontend directory path if different from "frontend/"
+    frontend_dir = project_root / "frontend"  # ← CUSTOMIZE THIS
     if not frontend_dir.exists():
         print("⚠️  Frontend directory not found. Skipping frontend tests.")
         return True
@@ -204,21 +384,25 @@ def run_frontend_tests(changed_files=None):
     test_files = []
     if changed_files:
         # Include test files that were directly changed/created
+        # CUSTOMIZE: Update frontend path prefix if different
         direct_test_files = [
             f
             for f in changed_files
-            if f.startswith("frontend/src/")
+            if f.startswith("frontend/src/")  # ← CUSTOMIZE THIS
             and (f.endswith(".test.ts") or f.endswith(".test.tsx"))
         ]
         test_files.extend(direct_test_files)
-        
+
         # Map source files to their test files
+        # CUSTOMIZE: Update frontend path prefix if different
         frontend_source_files = [
             f
             for f in changed_files
-            if f.startswith("frontend/src/")
+            if f.startswith("frontend/src/")  # ← CUSTOMIZE THIS
             and (f.endswith(".ts") or f.endswith(".tsx"))
-            and not (f.endswith(".test.ts") or f.endswith(".test.tsx"))  # Exclude test files
+            and not (
+                f.endswith(".test.ts") or f.endswith(".test.tsx")
+            )  # Exclude test files
         ]
         if frontend_source_files:
             mapped_tests = map_frontend_files_to_tests(frontend_source_files)
@@ -280,8 +464,7 @@ def run_frontend_tests(changed_files=None):
     else:
         print("⚠️  No specific test files found - running all frontend tests")
 
-    # Run vitest with timeout to prevent hanging (30 seconds max)
-    # Note: capture_output=False so output goes through OutputCapture
+    # Run vitest and capture output so it goes through OutputCapture
     try:
         result = subprocess.run(  # nosec B603 B602 - developer tooling invocation, shell needed on Windows for npm
             vitest_cmd,
@@ -290,9 +473,15 @@ def run_frontend_tests(changed_files=None):
             stdin=subprocess.DEVNULL,  # Prevent waiting for input
             env=env,
             timeout=30,  # 30 second timeout (tests complete in ~5s, this prevents hanging)
-            capture_output=False,  # Don't capture - let output go through OutputCapture
+            capture_output=True,  # Capture output so we can print it through OutputCapture
             text=True,
+            encoding="utf-8",
         )
+        # Print captured output (stdout and stderr) so it goes through OutputCapture
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
         if result.returncode == 0:
             return True
         else:
@@ -355,15 +544,36 @@ def main():
         else:
             print("❌ Some frontend tests failed")
 
-        # Copy all output to clipboard
+        # Extract and copy only error sections to clipboard
         try:
             captured_output_value = captured_output.get_value()
-            if copy_to_clipboard(captured_output_value):
-                print("\n📋 Test results copied to clipboard! You can paste them now.")
+            error_sections = extract_error_sections(captured_output_value)
+
+            # Copy error sections if tests failed, otherwise copy nothing
+            if error_sections:
+                if copy_to_clipboard(error_sections):
+                    print(
+                        "\n📋 Test error sections copied to clipboard! You can paste them now."
+                    )
+                    print("   (Only FAILURES/ERRORS and summary sections included)")
+                else:
+                    print(
+                        "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
+                    )
+            elif not all_passed:
+                # Tests failed but no error sections found - copy full output as fallback
+                if copy_to_clipboard(captured_output_value):
+                    print(
+                        "\n📋 Test results copied to clipboard! You can paste them now."
+                    )
+                    print("   (Full output - error sections not detected)")
+                else:
+                    print(
+                        "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
+                    )
             else:
-                print(
-                    "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
-                )
+                # All tests passed - no need to copy anything
+                print("\n✅ All tests passed - nothing copied to clipboard")
         except Exception as e:
             print(f"\n⚠️  Error copying to clipboard: {e} (but output is shown above).")
 

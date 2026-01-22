@@ -3,6 +3,30 @@
 # Usage: python scripts/test_integration.py
 # This detects API schema changes since last commit and runs integration tests
 # Output is automatically copied to clipboard for easy sharing
+#
+# ============================================================================
+# PROJECT-SPECIFIC CUSTOMIZATION
+# ============================================================================
+# When copying this script to your project template, customize these sections:
+#
+# 1. API SCHEMA PATTERNS (line ~257):
+#    - Update `api_schema_patterns` list to match your API schema locations
+#    - Default: ["src/schemas/", "src/api/v1/"]
+#    - This determines when integration tests run automatically
+#
+# 2. COMMAND HEADER (line ~173):
+#    - Update command string to match your task runner command
+#    - Default: "Command: task test:integration"
+#
+# 3. PROJECT-SPECIFIC CODE (lines ~47-52, ~295, ~380-399):
+#    - Remove the VERIFICATION_TEST_FILE constant and all references to it
+#    - Search for "VERIFICATION_TEST_FILE" and "PROJECT-SPECIFIC" comments
+#    - This is only needed for this project's verification workflow
+#
+# The core functionality (error extraction, clipboard copying) is generic and
+# works for any project using pytest with integration markers. Only the above
+# sections need customization.
+# ============================================================================
 
 import os
 import subprocess  # nosec B404 - only invoked with trusted developer tools
@@ -19,6 +43,15 @@ if sys.platform == "win32":
 
 project_root = Path(__file__).parent.parent
 GIT_BINARY = "git"
+
+# ============================================================================
+# PROJECT-SPECIFIC CONFIGURATION
+# ============================================================================
+# When copying this script to a template, REMOVE the following constant and
+# all references to it (search for "VERIFICATION_TEST_FILE").
+# This is only needed for this specific project's verification workflow.
+VERIFICATION_TEST_FILE = "tests/test_verify_integration_output_capture.py"
+# ============================================================================
 
 
 class OutputCapture:
@@ -54,6 +87,129 @@ class OutputCapture:
         sys.stderr = self.original_stderr
 
 
+def extract_error_sections(full_output: str) -> str:
+    """
+    Extract only the relevant error sections from pytest output.
+
+    Captures:
+    - === FAILURES === section (detailed error tracebacks)
+    - === ERRORS === section (collection/import errors)
+    - === short test summary info === section (concise summary)
+
+    Excludes:
+    - Passing test output
+    - Test collection info
+    - Coverage reports
+    - Other irrelevant sections
+    """
+    lines = full_output.split("\n")
+    extracted = []
+    in_failures = False
+    in_errors = False
+    in_summary = False
+    capture_buffer = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check for section markers (pytest uses === with many equals signs)
+        # Format: ================================== FAILURES ===================================
+        if "FAILURES" in line and "===" in line:
+            in_failures = True
+            in_errors = False
+            in_summary = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif "ERRORS" in line and "===" in line:
+            in_errors = True
+            in_failures = False
+            in_summary = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif "short test summary info" in line and "===" in line:
+            in_summary = True
+            in_failures = False
+            in_errors = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif in_failures or in_errors or in_summary:
+            # Continue capturing until next section or end
+            # Check if this line is a new section marker
+            is_failures_marker = "FAILURES" in line and "===" in line
+            is_errors_marker = "ERRORS" in line and "===" in line
+            is_summary_marker = "short test summary" in line and "===" in line
+
+            # If we hit a different section marker, switch to that section
+            if is_failures_marker and not in_failures:
+                # Switching to failures section
+                in_failures = True
+                in_errors = False
+                in_summary = False
+                extracted.append(line)
+            elif is_errors_marker and not in_errors:
+                # Switching to errors section
+                in_errors = True
+                in_failures = False
+                in_summary = False
+                extracted.append(line)
+            elif is_summary_marker and not in_summary:
+                # Switching to summary section
+                in_summary = True
+                in_failures = False
+                in_errors = False
+                extracted.append(line)
+            elif is_failures_marker or is_errors_marker or is_summary_marker:
+                # Same section marker repeated (shouldn't happen, but handle it)
+                extracted.append(line)
+            else:
+                # Regular content line - capture it
+                extracted.append(line)
+        else:
+            # Not in any error section, but buffer lines that might be part of a section
+            # (handles cases where section marker might be split across lines)
+            # Check for pytest format: === with FAILURES/ERRORS/short test summary
+            if (
+                ("===" in line and "FAILURES" in line)
+                or ("===" in line and "ERRORS" in line)
+                or ("===" in line and "short test summary" in line)
+            ):
+                capture_buffer.append(line)
+            elif capture_buffer:
+                # Clear buffer if we're clearly not in an error section
+                capture_buffer = []
+
+        i += 1
+
+    # Add any remaining buffered lines
+    if capture_buffer:
+        extracted.extend(capture_buffer)
+
+    result = "\n".join(extracted)
+
+    # If no error sections found, return empty (tests passed)
+    # Check for pytest format (=== with FAILURES/ERRORS)
+    if ("FAILURES" not in result or "===" not in result) and (
+        "ERRORS" not in result or "===" not in result
+    ):
+        return ""
+
+    # Add header with test command info
+    # CUSTOMIZE: Update command string to match your task runner
+    header = "Test Output (Error Sections Only)\n"
+    header += "=" * 70 + "\n"
+    header += "Command: task test:integration\n"  # ← CUSTOMIZE THIS
+    header += "=" * 70 + "\n\n"
+
+    return header + result
+
+
 def copy_to_clipboard(text: str) -> bool:
     """Copy text to clipboard. Returns True if successful."""
     try:
@@ -83,7 +239,14 @@ def copy_to_clipboard(text: str) -> bool:
             )
             process.communicate(input=text, timeout=5)
             return process.returncode == 0
-    except Exception:
+    except subprocess.TimeoutExpired:
+        print(f"⚠️  Clipboard operation timed out", file=sys.stderr)
+        return False
+    except FileNotFoundError as e:
+        print(f"⚠️  Clipboard command not found: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"⚠️  Clipboard operation failed: {e}", file=sys.stderr)
         return False
 
 
@@ -132,14 +295,20 @@ def get_changed_files():
 
 def filter_api_schema_files(changed_files):
     """Filter changed files to only API schema files."""
+    # CUSTOMIZE: Update these patterns to match your API schema locations
+    # Integration tests will run automatically when files matching these patterns change
     api_schema_patterns = [
         "src/schemas/",
         "src/api/v1/",
-    ]
+    ]  # ← CUSTOMIZE THIS LIST
 
     api_files = []
     for file in changed_files:
         if any(file.startswith(pattern) for pattern in api_schema_patterns):
+            api_files.append(file)
+        # PROJECT-SPECIFIC: Remove this block when copying to template
+        # This allows verification tests to trigger integration test runs
+        elif file == VERIFICATION_TEST_FILE:
             api_files.append(file)
 
     return api_files
@@ -171,7 +340,7 @@ def run_integration_tests():
     env = os.environ.copy()
     env["PYTEST_CURRENT_TEST"] = ""  # Clear any existing test context
 
-    # Run pytest with timeout (integration tests can take longer)
+    # Run pytest and capture output so it goes through OutputCapture
     try:
         result = subprocess.run(  # nosec B603 - developer tooling invocation
             pytest_cmd,
@@ -179,7 +348,15 @@ def run_integration_tests():
             stdin=subprocess.DEVNULL,  # Prevent waiting for input
             env=env,
             timeout=600,  # 10 minute timeout for integration tests
+            capture_output=True,  # Capture output so we can print it through OutputCapture
+            text=True,
+            encoding="utf-8",
         )
+        # Print captured output (stdout and stderr) so it goes through OutputCapture
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
         return result.returncode == 0
     except subprocess.TimeoutExpired:
         print("\n⚠️  Integration tests timed out after 10 minutes")
@@ -215,17 +392,26 @@ def main():
             )
             return 0
 
-        print(f"Found {len(api_files)} changed API schema file(s):")
+        # PROJECT-SPECIFIC: Remove this block when copying to template
+        # This provides special messaging for verification test runs
+        has_verification_test = any(VERIFICATION_TEST_FILE in f for f in api_files)
+
+        print(f"Found {len(api_files)} changed file(s):")
         for f in api_files[:10]:  # Show first 10
             print(f"  - {f}")
         if len(api_files) > 10:
             print(f"  ... and {len(api_files) - 10} more")
 
-        print("\n⚠️  API SCHEMAS CHANGED - Running Integration Tests")
-        print("API contract changes detected. Running integration tests to verify")
-        print(
-            "backend-frontend compatibility. Agent should create/update tests as needed."
-        )
+        # PROJECT-SPECIFIC: Remove this conditional when copying to template
+        if has_verification_test:
+            print("\n🧪 VERIFICATION TEST DETECTED - Running Integration Tests")
+            print("Running integration tests for output capture verification.")
+        else:
+            print("\n⚠️  API SCHEMAS CHANGED - Running Integration Tests")
+            print("API contract changes detected. Running integration tests to verify")
+            print(
+                "backend-frontend compatibility. Agent should create/update tests as needed."
+            )
 
         # Run integration tests
         all_passed = run_integration_tests()
@@ -237,15 +423,36 @@ def main():
         else:
             print("❌ Some integration tests failed")
 
-        # Copy all output to clipboard
+        # Extract and copy only error sections to clipboard
         try:
             captured_output_value = captured_output.get_value()
-            if copy_to_clipboard(captured_output_value):
-                print("\n📋 Test results copied to clipboard! You can paste them now.")
+            error_sections = extract_error_sections(captured_output_value)
+
+            # Copy error sections if tests failed, otherwise copy nothing
+            if error_sections:
+                if copy_to_clipboard(error_sections):
+                    print(
+                        "\n📋 Test error sections copied to clipboard! You can paste them now."
+                    )
+                    print("   (Only FAILURES/ERRORS and summary sections included)")
+                else:
+                    print(
+                        "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
+                    )
+            elif not all_passed:
+                # Tests failed but no error sections found - copy full output as fallback
+                if copy_to_clipboard(captured_output_value):
+                    print(
+                        "\n📋 Test results copied to clipboard! You can paste them now."
+                    )
+                    print("   (Full output - error sections not detected)")
+                else:
+                    print(
+                        "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
+                    )
             else:
-                print(
-                    "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
-                )
+                # All tests passed - no need to copy anything
+                print("\n✅ All tests passed - nothing copied to clipboard")
         except Exception as e:
             print(f"\n⚠️  Error copying to clipboard: {e} (but output is shown above).")
 

@@ -17,6 +17,11 @@
 *.py text eol=lf
 *.sh text eol=lf
 *.bash text eol=lf
+*.md text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
 
 # Exclude from exports (optional)
 .gitattributes export-ignore

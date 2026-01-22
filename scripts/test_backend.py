@@ -3,6 +3,31 @@
 # Usage: python scripts/test_backend.py
 # This detects backend files changed since last commit and runs appropriate tests
 # Output is automatically copied to clipboard for easy sharing
+#
+# ============================================================================
+# PROJECT-SPECIFIC CUSTOMIZATION
+# ============================================================================
+# When copying this script to your project template, customize these sections:
+#
+# 1. BACKEND PATTERNS (line ~277):
+#    - Update `backend_patterns` list to match your project's directory structure
+#    - Default: ["src/", "config/", "tests/", "scripts/", "alembic/"]
+#
+# 2. TEST FILE MAPPING (line ~295):
+#    - Update `map_files_to_tests()` function to match your test naming conventions
+#    - Default: src/module.py -> tests/test_module.py
+#
+# 3. COMMAND HEADER (line ~193):
+#    - Update command string to match your task runner command
+#    - Default: "Command: task test:backend"
+#
+# 4. SOURCE FILE PATHS (line ~339):
+#    - Update Python source file path patterns if different
+#    - Default: ["src/", "config/", "scripts/", "tests/"]
+#
+# The core functionality (error extraction, clipboard copying) is generic and
+# works for any project using pytest. Only the above sections need customization.
+# ============================================================================
 
 import os
 import subprocess  # nosec B404 - only invoked with trusted developer tools
@@ -54,6 +79,149 @@ class OutputCapture:
         sys.stderr = self.original_stderr
 
 
+def extract_error_sections(full_output: str) -> str:
+    """
+    Extract only the relevant error sections from pytest output.
+
+    Captures:
+    - === FAILURES === section (detailed error tracebacks)
+    - === ERRORS === section (collection/import errors)
+    - === short test summary info === section (concise summary)
+
+    Excludes:
+    - Passing test output
+    - Test collection info
+    - Coverage reports
+    - Other irrelevant sections
+    """
+    lines = full_output.split("\n")
+    extracted = []
+    in_failures = False
+    in_errors = False
+    in_summary = False
+    capture_buffer = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check for section markers (pytest uses === with many equals signs)
+        # Format: ================================== FAILURES ===================================
+        if "FAILURES" in line and "===" in line:
+            in_failures = True
+            in_errors = False
+            in_summary = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif "ERRORS" in line and "===" in line:
+            in_errors = True
+            in_failures = False
+            in_summary = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif "short test summary info" in line and "===" in line:
+            in_summary = True
+            in_failures = False
+            in_errors = False
+            if capture_buffer:
+                extracted.extend(capture_buffer)
+                capture_buffer = []
+            extracted.append(line)
+        elif in_failures or in_errors or in_summary:
+            # Continue capturing until next section or end
+            # Check if this line is a new section marker
+            is_failures_marker = "FAILURES" in line and "===" in line
+            is_errors_marker = "ERRORS" in line and "===" in line
+            is_summary_marker = "short test summary" in line and "===" in line
+
+            # Stop capturing if we hit coverage section or final summary
+            is_coverage_section = "tests coverage" in line and "===" in line
+            is_final_summary = (
+                ("failed" in line.lower() or "passed" in line.lower())
+                and "in " in line.lower()
+                and ("s ==" in line or "s ===" in line)
+            )
+
+            if is_coverage_section or is_final_summary:
+                # Stop capturing - we've reached coverage or final summary
+                in_failures = False
+                in_errors = False
+                in_summary = False
+            # If we hit a different section marker, switch to that section
+            elif is_failures_marker and not in_failures:
+                # Switching to failures section
+                in_failures = True
+                in_errors = False
+                in_summary = False
+                extracted.append(line)
+            elif is_errors_marker and not in_errors:
+                # Switching to errors section
+                in_errors = True
+                in_failures = False
+                in_summary = False
+                extracted.append(line)
+            elif is_summary_marker and not in_summary:
+                # Switching to summary section
+                in_summary = True
+                in_failures = False
+                in_errors = False
+                extracted.append(line)
+            elif is_failures_marker or is_errors_marker or is_summary_marker:
+                # Same section marker repeated (shouldn't happen, but handle it)
+                extracted.append(line)
+            else:
+                # Regular content line - capture it (but skip coverage warnings)
+                if (
+                    "CoverageWarning" not in line
+                    and "coverage" not in line.lower()
+                    or "===" in line
+                ):
+                    extracted.append(line)
+        else:
+            # Not in any error section, but buffer lines that might be part of a section
+            # (handles cases where section marker might be split across lines)
+            # Check for pytest format: === with FAILURES/ERRORS/short test summary
+            # Skip coverage sections and warnings
+            is_coverage = "tests coverage" in line or "CoverageWarning" in line
+            if not is_coverage and (
+                ("===" in line and "FAILURES" in line)
+                or ("===" in line and "ERRORS" in line)
+                or ("===" in line and "short test summary" in line)
+            ):
+                capture_buffer.append(line)
+            elif capture_buffer:
+                # Clear buffer if we're clearly not in an error section
+                capture_buffer = []
+
+        i += 1
+
+    # Add any remaining buffered lines
+    if capture_buffer:
+        extracted.extend(capture_buffer)
+
+    result = "\n".join(extracted)
+
+    # If no error sections found, return empty (tests passed)
+    # Check for pytest format (=== with FAILURES/ERRORS)
+    if ("FAILURES" not in result or "===" not in result) and (
+        "ERRORS" not in result or "===" not in result
+    ):
+        return ""
+
+    # Add header with test command info
+    # CUSTOMIZE: Update command string to match your task runner
+    header = "Test Output (Error Sections Only)\n"
+    header += "=" * 70 + "\n"
+    header += "Command: task test:backend\n"  # ← CUSTOMIZE THIS
+    header += "=" * 70 + "\n\n"
+
+    return header + result
+
+
 def copy_to_clipboard(text: str) -> bool:
     """Copy text to clipboard. Returns True if successful."""
     try:
@@ -83,7 +251,14 @@ def copy_to_clipboard(text: str) -> bool:
             )
             process.communicate(input=text, timeout=5)
             return process.returncode == 0
-    except Exception:
+    except subprocess.TimeoutExpired:
+        print(f"⚠️  Clipboard operation timed out", file=sys.stderr)
+        return False
+    except FileNotFoundError as e:
+        print(f"⚠️  Clipboard command not found: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"⚠️  Clipboard operation failed: {e}", file=sys.stderr)
         return False
 
 
@@ -132,13 +307,14 @@ def get_changed_files():
 
 def filter_backend_files(changed_files):
     """Filter changed files to only backend Python files."""
+    # CUSTOMIZE: Update these patterns to match your project's directory structure
     backend_patterns = [
         "src/",
         "config/",
         "tests/",
         "scripts/",
         "alembic/",
-    ]
+    ]  # ← CUSTOMIZE THIS LIST
 
     backend_files = []
     for file in changed_files:
@@ -152,6 +328,7 @@ def filter_backend_files(changed_files):
 
 def map_files_to_tests(changed_files):
     """Map changed source files to their corresponding test files."""
+    # CUSTOMIZE: Update this function to match your test file naming conventions
     test_files = []
 
     for file in changed_files:
@@ -174,6 +351,7 @@ def map_files_to_tests(changed_files):
             test_file = file.replace("config/", "tests/test_config_")
             if (project_root / test_file).exists() and test_file not in test_files:
                 test_files.append(test_file)
+    # ← CUSTOMIZE: Add more mapping rules if your project uses different conventions
 
     return test_files
 
@@ -190,11 +368,14 @@ def run_backend_tests(changed_files=None):
         pytest_cmd = [sys.executable, "-m", "pytest", "-v", "--maxfail=5", "--tb=short"]
     else:
         # Filter to only Python source files
+        # CUSTOMIZE: Update these path patterns if your project uses different directories
         python_source_files = [
             f
             for f in changed_files
             if f.endswith(".py")
-            and any(f.startswith(p) for p in ["src/", "config/", "scripts/", "tests/"])
+            and any(
+                f.startswith(p) for p in ["src/", "config/", "scripts/", "tests/"]
+            )  # ← CUSTOMIZE THIS
         ]
 
         if not python_source_files:
@@ -238,13 +419,21 @@ def run_backend_tests(changed_files=None):
     env = os.environ.copy()
     env["PYTEST_CURRENT_TEST"] = ""  # Clear any existing test context
 
-    # Run pytest normally (no timeout - let it complete)
+    # Run pytest and capture output so it goes through OutputCapture
     result = subprocess.run(  # nosec B603 - developer tooling invocation
         pytest_cmd,
         cwd=project_root,
         stdin=subprocess.DEVNULL,  # Prevent waiting for input
         env=env,
+        capture_output=True,  # Capture output so we can print it through OutputCapture
+        text=True,
+        encoding="utf-8",
     )
+    # Print captured output (stdout and stderr) so it goes through OutputCapture
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
     return result.returncode == 0
 
 
@@ -289,15 +478,36 @@ def main():
         else:
             print("❌ Some backend tests failed")
 
-        # Copy all output to clipboard
+        # Extract and copy only error sections to clipboard
         try:
             captured_output_value = captured_output.get_value()
-            if copy_to_clipboard(captured_output_value):
-                print("\n📋 Test results copied to clipboard! You can paste them now.")
+            error_sections = extract_error_sections(captured_output_value)
+
+            # Copy error sections if tests failed, otherwise copy nothing
+            if error_sections:
+                if copy_to_clipboard(error_sections):
+                    print(
+                        "\n📋 Test error sections copied to clipboard! You can paste them now."
+                    )
+                    print("   (Only FAILURES/ERRORS and summary sections included)")
+                else:
+                    print(
+                        "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
+                    )
+            elif not all_passed:
+                # Tests failed but no error sections found - copy full output as fallback
+                if copy_to_clipboard(captured_output_value):
+                    print(
+                        "\n📋 Test results copied to clipboard! You can paste them now."
+                    )
+                    print("   (Full output - error sections not detected)")
+                else:
+                    print(
+                        "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
+                    )
             else:
-                print(
-                    "\n⚠️  Failed to copy results to clipboard (but output is shown above)."
-                )
+                # All tests passed - no need to copy anything
+                print("\n✅ All tests passed - nothing copied to clipboard")
         except Exception as e:
             print(f"\n⚠️  Error copying to clipboard: {e} (but output is shown above).")
 

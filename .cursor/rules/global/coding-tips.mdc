@@ -1,0 +1,348 @@
+---
+description: Agent process rules and workflow guidelines from Simplified Error Registry. Apply when writing code, creating files, using file paths, running commands, or working with Docker. Check .errors_fixes/coding_tips.md for specific rules before coding to prevent common workflow issues.
+alwaysApply: false
+---
+
+# Coding Tips Reference - Proactive Prevention
+
+## Purpose
+
+**Proactive Prevention**: Check `.errors_fixes/coding_tips.md` **before** writing code to avoid common agent workflow issues and process errors. This rule complements `errors.mdc` by ensuring prevention happens before errors occur.
+
+**Key Principle**: Apply process rules proactively to prevent errors, rather than fixing them reactively.
+
+---
+
+## Coding Tips Reference
+
+**Before writing code or making changes**, always check `.errors_fixes/coding_tips.md` for:
+
+### Rule Categories
+
+1. **Path Handling Rules**
+   - Use `pathlib.Path` instead of string concatenation
+   - Avoid hardcoded paths
+   - Handle cross-platform differences (Windows, Linux, macOS)
+   - Use absolute paths with `pathlib.Path` construction
+
+2. **Command Format Rules**
+   - Check `pyproject.toml` for available task commands
+   - Use correct taskipy format: `task test:backend`, `task test:frontend`, etc.
+   - Verify command syntax before advising users
+
+3. **String Formatting Best Practices**
+   - Follow project standards (black, ruff)
+   - Use UTF-8 encoding for all text files
+   - Use LF line endings (Unix-style)
+   - Proper f-string usage and escaping
+
+4. **Docker Rules**
+   - Network configuration patterns
+   - Volume mount conventions
+   - Environment variable handling
+   - Service dependencies
+
+5. **File I/O Patterns**
+   - Encoding specifications (always UTF-8)
+   - Line ending handling (LF)
+   - Error handling for file operations
+   - Proper path construction
+
+6. **Project-Specific Conventions**
+   - Code organization patterns
+   - Import conventions
+   - Testing patterns
+   - Documentation standards
+
+---
+
+## When to Check coding_tips.md
+
+Check `.errors_fixes/coding_tips.md` in these scenarios:
+
+### 1. Before Writing New Code
+
+**Trigger**: User requests to "write code", "create a function", "implement feature", "add module", etc.
+
+**Action**: 
+1. Read `.errors_fixes/coding_tips.md`
+2. Identify relevant rules for the code you're about to write
+3. Apply rules proactively before coding
+4. Follow examples and avoid bad patterns
+
+**Example**:
+```
+User: "Write a function to read a config file"
+
+Agent: 
+1. Checks coding_tips.md for file I/O and path handling rules
+2. Applies rules: use pathlib.Path, UTF-8 encoding, proper error handling
+3. Writes code following the rules
+```
+
+### 2. Before Using File Paths
+
+**Trigger**: User requests involving file paths, "open file", "read file", "save to", "create file at", etc.
+
+**Action**:
+1. Check `.errors_fixes/coding_tips.md` for path handling rules
+2. Use `pathlib.Path` instead of string paths
+3. Avoid hardcoded paths
+4. Handle cross-platform differences
+
+**Example**:
+```
+User: "Read the config file from ./config/settings.json"
+
+Agent:
+1. Checks coding_tips.md for path handling rules
+2. Uses: `from pathlib import Path; config_path = Path("config/settings.json")`
+3. Avoids: `open("./config/settings.json")` or string concatenation
+```
+
+### 3. Before Running Commands
+
+**Trigger**: User asks to "run test", "execute command", "run task", etc.
+
+**Action**:
+1. Check `.errors_fixes/coding_tips.md` for command format rules
+2. Verify command syntax in `pyproject.toml`
+3. Use correct taskipy format
+4. Advise user with correct command syntax
+
+**Example**:
+```
+User: "Run the tests"
+
+Agent:
+1. Checks coding_tips.md and pyproject.toml
+2. Advises: `task test:backend` (not `pytest tests/`)
+3. Follows project conventions
+```
+
+### 4. Before Docker Work
+
+**Trigger**: User mentions "Docker", "docker-compose", "container", "service", etc.
+
+**Action**:
+1. Check `.errors_fixes/coding_tips.md` for Docker rules
+2. Follow network configuration patterns
+3. Use correct volume mount conventions
+4. Handle environment variables correctly
+
+**Example**:
+```
+User: "Add a new service to docker-compose.yml"
+
+Agent:
+1. Checks coding_tips.md for Docker rules
+2. Follows volume mount patterns, network config, etc.
+3. Avoids common Docker mistakes documented in tips
+```
+
+### 5. Before Making Changes That Might Trigger Known Issues
+
+**Trigger**: User requests changes to areas where process issues have occurred before.
+
+**Action**:
+1. Check `.errors_fixes/coding_tips.md` for relevant rules
+2. Review related errors and fixes
+3. Apply preventive measures
+
+---
+
+## How to Use coding_tips.md
+
+### Step 1: Locate the File
+
+The file is located at:
+- `{project_root}/.errors_fixes/coding_tips.md`
+
+Use `pathlib.Path` to construct the path:
+```python
+from pathlib import Path
+project_root = Path.cwd()
+coding_tips_path = project_root / ".errors_fixes" / "coding_tips.md"
+```
+
+### Step 2: Read Relevant Rules
+
+1. **Scan categories**: Identify which rule categories apply to your task
+2. **Read rule details**: Understand the "Why" for each relevant rule
+3. **Review examples**: Study good examples (✅) and avoid bad ones (❌)
+4. **Check related errors**: Understand what errors these rules prevent
+
+### Step 3: Apply Rules Proactively
+
+1. **Before coding**: Apply rules to your implementation plan
+2. **During coding**: Follow examples and avoid bad patterns
+3. **After coding**: Verify you've followed all relevant rules
+
+### Step 4: Document Process Issues (if they occur)
+
+If you encounter a process issue despite following rules:
+1. Document it as `### Agent Process Issue:` in `errors_and_fixes.md`
+2. Include the issue description, rule established, and examples
+3. Consolidation app will extract it and update `coding_tips.md`
+
+---
+
+## Integration with errors.mdc
+
+This rule works **together** with `errors.mdc` for comprehensive coverage:
+
+- **`coding-tips.mdc`** (this rule): Proactive prevention before errors occur
+- **`errors.mdc`**: Reactive error resolution when errors occur
+
+**Workflow**:
+1. User requests code: `coding-tips.mdc` triggers → Check `coding_tips.md` → Apply rules → Write code
+2. Code causes error: `errors.mdc` triggers → Check lookup order → Apply fix → Document
+
+**Both rules reference `coding_tips.md`**:
+- This rule checks it proactively before coding
+- `errors.mdc` checks it during error resolution (as part of lookup strategy)
+
+---
+
+## File Structure
+
+The `.errors_fixes/coding_tips.md` file follows this structure:
+
+```markdown
+# Coding Tips - Agent Process Rules
+
+> **Last Updated:** YYYY-MM-DDTHH:MM:SSZ  
+> **Total Rules:** N
+
+---
+
+## Category Name
+
+### Rule: Rule title
+
+**Why:** Explanation of why this rule is important and what problems it prevents.
+
+**Examples:**
+- ✅ Good example that follows the rule
+- ✅ Another good example
+- ❌ Bad example that violates the rule
+
+**Related Errors:**
+- `ErrorType: Error message` (X occurrences)
+- `AnotherErrorType: Another message` (Y occurrences)
+---
+```
+
+**Rule Categories** (common):
+- Path Handling
+- Command Format
+- String Formatting
+- Docker Configuration
+- File I/O
+- Project-Specific Conventions
+
+---
+
+## Examples of Proactive Prevention
+
+### Example 1: Path Handling
+
+**Without checking coding_tips.md**:
+```python
+# Bad: Hardcoded path, string concatenation
+file_path = "./data/config.json"
+with open(file_path) as f:
+    data = json.load(f)
+```
+
+**After checking coding_tips.md**:
+```python
+# Good: pathlib.Path, absolute path
+from pathlib import Path
+config_path = Path("data") / "config.json"
+with config_path.open(encoding="utf-8") as f:
+    data = json.load(f)
+```
+
+### Example 2: Command Format
+
+**Without checking coding_tips.md**:
+```
+User: "Run tests"
+Agent: "Run: pytest tests/"
+```
+
+**After checking coding_tips.md**:
+```
+User: "Run tests"
+Agent: Checks pyproject.toml, finds task commands
+Agent: "Run: task test:backend"
+```
+
+### Example 3: Docker Configuration
+
+**Without checking coding_tips.md**:
+```yaml
+# Bad: Incorrect volume mount pattern
+services:
+  app:
+    volumes:
+      - ./data:/data  # Wrong pattern
+```
+
+**After checking coding_tips.md**:
+```yaml
+# Good: Follows project conventions from coding_tips.md
+services:
+  app:
+    volumes:
+      - ./data:/app/data:ro  # Correct pattern
+```
+
+---
+
+## Best Practices
+
+1. **Always check first**: Make checking `coding_tips.md` part of your coding workflow
+2. **Read thoroughly**: Don't just skim - understand the "Why" behind rules
+3. **Follow examples**: Use good examples (✅) as templates
+4. **Avoid bad patterns**: Don't repeat mistakes shown in bad examples (❌)
+5. **Update when needed**: If you discover a new process issue, document it in `errors_and_fixes.md`
+
+---
+
+## Relationship to Simplified Error Registry
+
+The `coding_tips.md` file is part of the Simplified Error Registry system:
+
+1. **Source**: Rules are extracted from `### Agent Process Issue:` entries in `errors_and_fixes.md`
+2. **Processing**: Consolidation app processes these entries daily and updates `coding_tips.md`
+3. **Purpose**: Prevent recurring process issues by making rules available proactively
+4. **Lifecycle**: Read-only during development, updated by consolidation app
+
+**Workflow**:
+```
+Agent Process Issue occurs
+    ↓
+Documented in errors_and_fixes.md
+    ↓
+Consolidation app extracts rule
+    ↓
+Rule added to coding_tips.md
+    ↓
+Future agents check coding_tips.md proactively
+    ↓
+Prevents same issue from recurring
+```
+
+---
+
+## Summary
+
+- **Check `coding_tips.md` before writing code** to prevent process issues
+- **Apply rules proactively** rather than fixing errors reactively
+- **Use examples** (✅ good, ❌ bad) to guide implementation
+- **Document new issues** if they occur despite following rules
+- **Complements `errors.mdc`** for comprehensive error prevention and resolution
+
+**Remember**: Prevention is better than cure. Checking `coding_tips.md` before coding saves time and avoids errors.

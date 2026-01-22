@@ -1,0 +1,289 @@
+---
+description: Optional command-based auto-fix workflow for Simplified Error Registry. Run tests automatically, fix errors using lookup order, and document results. Alternative to manual workflow in errors.mdc rule. Use when you want automated test-and-fix cycles with safety limits.
+alwaysApply: false
+---
+
+# Test-and-Fix Command
+
+## Purpose
+
+This command provides an **optional automated workflow** for running tests and fixing errors. It's an alternative to the default manual workflow in `errors.mdc`.
+
+**Note**: This is optional/backup - the primary workflow uses the `errors.mdc` rule with manual test execution. Use this command when you want automated test-and-fix cycles.
+
+---
+
+## Workflow
+
+When user runs `.cursor/command test-and-fix`, follow this workflow:
+
+### Step 1: Determine Test Command
+
+1. **Identify code type** from recent changes:
+   - Backend code (Python, APIs, services) → Use: `task test:backend`
+   - Frontend code (React, Vue, TypeScript UI) → Use: `task test:frontend`
+   - Integration code (cross-component, end-to-end) → Use: `task test:integration`
+   - Mixed changes → Use: `task test` (if available) or run all relevant suites
+
+2. **Check project structure**:
+   - Verify test commands exist in `pyproject.toml`
+   - Use appropriate command based on code type
+
+3. **Log test command**:
+   - Inform user which test command will be run
+   - Example: "Running: `task test:backend`"
+
+### Step 2: Run Tests
+
+1. **Execute test command**:
+   - Run the determined test command (e.g., `task test:backend`)
+   - Capture full test output
+   - Parse output for errors
+
+2. **Check results**:
+   - If all tests pass → Go to Step 5 (Final Report)
+   - If tests fail → Go to Step 3 (Check Results)
+
+3. **Extract error information**:
+   - Parse `=== FAILURES ===` section
+   - Parse `=== ERRORS ===` section
+   - Parse `=== short test summary info ===` section
+   - Extract error types, messages, file locations, line numbers
+
+### Step 3: Check Results
+
+1. **If all tests pass**:
+   - Document success in `.errors_fixes/errors_and_fixes.md` (if any fixes were applied)
+   - Go to Step 5 (Final Report)
+
+2. **If tests fail**:
+   - Parse errors from test output
+   - Go to Step 4 (Fix Loop)
+
+### Step 4: Fix Loop (Maximum 5 Iterations)
+
+**For each iteration** (up to 5 total):
+
+1. **For each error found**:
+   - Follow three-step lookup order (from `errors.mdc`):
+     1. Check `.errors_fixes/errors_and_fixes.md` for recent session errors
+     2. Check `.errors_fixes/fix_repo.md` for consolidated fixes
+     3. Check `.errors_fixes/coding_tips.md` for agent process rules
+   - Apply fix with highest success count first
+   - Document attempt in `.errors_fixes/errors_and_fixes.md` immediately
+
+2. **After applying fixes**:
+   - Run test command again
+   - Check results
+
+3. **Stop conditions** (check after each iteration):
+   - ✅ **All tests pass** → Go to Step 5 (Final Report)
+   - ❌ **Same error repeats 3 times** → Stop and report to user
+   - ⏸️ **Maximum iterations (5) reached** → Stop and report status
+   - 🔄 **New errors appear** → Continue to next iteration
+
+4. **Track iteration count**:
+   - Increment iteration counter
+   - Track which errors have been seen before
+   - Track retry count for each error
+
+### Step 5: Final Report
+
+1. **Generate summary**:
+   - Total iterations used
+   - Total errors found
+   - Total errors fixed
+   - Total errors remaining (if any)
+   - Test command used
+
+2. **Report to user**:
+   - If all tests pass: "✅ All tests passed after X iterations!"
+   - If some tests failed: "⚠️ Fixed Y errors, Z errors remain after X iterations"
+   - If max iterations reached: "⏸️ Reached maximum iterations (5). X errors fixed, Y errors remain"
+
+3. **Documentation status**:
+   - Confirm all fixes documented in `.errors_fixes/errors_and_fixes.md`
+   - List test command used
+   - List errors fixed and their success counts
+
+---
+
+## Safety Limits
+
+### Maximum Iterations: 5
+
+- **Purpose**: Prevent infinite loops and excessive token usage
+- **Enforcement**: Stop after 5 iterations regardless of test status
+- **Report**: Inform user when max iterations reached
+
+### Same Error Retry Limit: 3
+
+- **Purpose**: Prevent repeatedly trying the same fix that doesn't work
+- **Enforcement**: If the same error appears 3 times in a row, stop and report
+- **Definition**: Same error = same error type, same file, same line number
+- **Report**: Inform user that the same error persists after 3 attempts
+
+### Stop Conditions
+
+Stop the fix loop when **any** of these conditions are met:
+
+1. ✅ **All tests pass** → Success, report and exit
+2. ⏸️ **Maximum iterations (5) reached** → Report status and exit
+3. ❌ **Same error repeats 3 times** → Report persistent error and exit
+4. ⚠️ **No fixes found** → If lookup order finds no fixes for all errors, report and exit
+
+### Error Tracking
+
+- Track each unique error (error type + file + line)
+- Track retry count for each error
+- Track which fixes have been attempted
+- Prevent trying the same fix multiple times for the same error
+
+---
+
+## Documentation
+
+### What to Document
+
+For each fix attempt, document in `.errors_fixes/errors_and_fixes.md`:
+
+1. **Error signature**:
+   - Error type (e.g., `AssertionError`, `ImportError`)
+   - Error message
+   - File path
+   - Line number
+
+2. **Fix applied**:
+   - Code before fix
+   - Code after fix
+   - Explanation of why fix works
+
+3. **Result**:
+   - ✅ Solved (if test passes after fix)
+   - ❌ Failed (if test still fails after fix)
+
+4. **Success count**:
+   - 1 for new fixes
+   - Increment if same fix was used before
+
+5. **Test command**:
+   - Which test command was used (e.g., `task test:backend`)
+   - Test result (passed/failed)
+
+6. **Tags** (optional):
+   - Auto-generated tags for categorization
+   - Error type tags, framework tags, domain tags
+
+### Documentation Format
+
+Use the same format as `errors.mdc` rule:
+
+```markdown
+### Error: ErrorType: Error message
+
+**Timestamp:** YYYY-MM-DDTHH:MM:SSZ  
+**File:** `path/to/file.py`  
+**Line:** 42  
+**Error Type:** `ErrorType`  
+**Tags:** `tag1`, `tag2`, `tag3`
+
+**Error Context:**
+```
+Traceback (most recent call last):
+  File "path/to/file.py", line 42, in function_name
+    code_that_caused_error
+ErrorType: Error message
+```
+
+**Fix Applied:**
+```python
+# Before
+code_before_fix
+
+# After
+code_after_fix
+```
+
+**Explanation:** Brief explanation of why the fix works.
+
+**Result:** ✅ Solved  
+**Success Count:** 1  
+**Test Command:** `task test:backend`  
+**Test Result:** All tests passed
+```
+
+### When to Document
+
+- **Immediately after each fix attempt** (before running tests again)
+- **After each test run** (document result: ✅ Solved or ❌ Failed)
+- **At end of workflow** (final summary of all fixes)
+
+---
+
+## Integration with errors.mdc
+
+This command **complements** the `errors.mdc` rule:
+
+- **`errors.mdc`**: Default manual workflow (user runs tests, provides output)
+- **`test-and-fix.mdc`**: Optional automated workflow (agent runs tests, fixes automatically)
+
+**Both use the same**:
+- Three-step lookup order
+- Fix application logic
+- Documentation format
+- Safety limits (when applicable)
+
+**Key Difference**:
+- `errors.mdc`: Manual test execution (user runs `task test:*`, provides output)
+- `test-and-fix.mdc`: Automated test execution (agent runs `task test:*`, parses output)
+
+---
+
+## Example Workflow
+
+### Scenario: Backend test failures
+
+1. **User runs**: `.cursor/command test-and-fix`
+
+2. **Step 1**: Agent determines: "Running: `task test:backend`"
+
+3. **Step 2**: Agent runs `task test:backend`, captures output
+
+4. **Step 3**: Tests fail, 2 errors found:
+   - `AssertionError` in `tests/test_api.py:42`
+   - `ImportError` in `tests/test_db.py:15`
+
+5. **Step 4 - Iteration 1**:
+   - Error 1: Check lookup order → Find fix in `fix_repo.md` → Apply fix → Document
+   - Error 2: Check lookup order → Find fix in `fix_repo.md` → Apply fix → Document
+   - Run `task test:backend` again
+   - Error 1: ✅ Solved
+   - Error 2: ❌ Failed (different error now)
+
+6. **Step 4 - Iteration 2**:
+   - Error 2: Check lookup order → Find different fix → Apply → Document
+   - Run `task test:backend` again
+   - Error 2: ✅ Solved
+
+7. **Step 5**: All tests pass → Report: "✅ All tests passed after 2 iterations!"
+
+---
+
+## Notes
+
+- **This is optional**: Primary workflow uses `errors.mdc` with manual test execution
+- **Use when**: You want automated test-and-fix cycles
+- **Don't use when**: You prefer manual control over test execution
+- **Safety first**: Always respect safety limits to prevent infinite loops
+- **Document everything**: All fixes must be documented for consolidation app
+
+---
+
+## File Paths
+
+All `.errors_fixes/` files are located at:
+- `{project_root}/.errors_fixes/errors_and_fixes.md` - Session log (ephemeral)
+- `{project_root}/.errors_fixes/fix_repo.md` - Consolidated fixes (read-only during dev)
+- `{project_root}/.errors_fixes/coding_tips.md` - Agent process rules (read-only during dev)
+
+Use `pathlib.Path` to construct paths. Never hardcode paths.
