@@ -1042,43 +1042,56 @@ At the end of Step 3, conduct comprehensive review:
 
 > **Add AI-powered features and select appropriate model: LLM client, semantic deduplication, AI tagging, fix merging, and rule extraction from process issues.**
 
-**Last Updated:** 2025-01-15  
-**Status:** ⬜ Not Started
+**Last Updated:** 2026-01-21  
+**Status:** 🟡 In Progress (3/5 phases complete)
 
 ---
 
-### Phase 4.1: LLM Client Integration ⬜
+### Phase 4.1: LLM Client Integration ✅
 **Priority:** Critical  
 **Estimated Time:** 4-5 hours  
-**Dependencies:** None
+**Dependencies:** None  
+**Completed:** 2026-01-21
 
 **Tasks:**
-- [ ] Create `src/consolidation_app/llm_client.py`
-  - [ ] Support Ollama (local)
-    - [ ] Function `call_ollama(prompt: str, model: str = "qwen2.5-coder:14b") -> str`
-    - [ ] Handle connection errors
-    - [ ] Handle timeout errors
-    - [ ] Retry logic for transient failures
-  - [ ] Support OpenAI API (optional)
-    - [ ] Function `call_openai(prompt: str, model: str = "gpt-4") -> str`
-    - [ ] Handle API errors
-    - [ ] Handle rate limiting
-  - [ ] Support Anthropic API (optional)
-    - [ ] Function `call_anthropic(prompt: str, model: str = "claude-3-opus") -> str`
-    - [ ] Handle API errors
-  - [ ] Configuration
-    - [ ] Read LLM provider from ENV (`LLM_PROVIDER`, `LLM_MODEL`)
-    - [ ] Default to Ollama
-    - [ ] Support API keys from ENV
-  - [ ] Add logging for LLM calls
-    - [ ] Log prompt length
-    - [ ] Log response length
-    - [ ] Log errors
-- [ ] Create unit tests
-  - [ ] Test Ollama connection (mock or real)
-  - [ ] Test OpenAI API (mock)
-  - [ ] Test error handling
-  - [ ] Test configuration
+- [x] Create `src/consolidation_app/llm_client.py`
+  - [x] Support Ollama (local)
+    - [x] Function `call_ollama(prompt: str, model: str = "qwen2.5-coder:14b") -> str`
+    - [x] Handle connection errors
+    - [x] Handle timeout errors
+    - [x] Retry logic for transient failures
+  - [x] Support OpenAI API
+    - [x] Function `call_openai(prompt: str, model: str = "gpt-4") -> str`
+    - [x] Handle API errors
+    - [x] Handle rate limiting
+  - [x] Support Anthropic API (optional)
+    - [x] Function `call_anthropic(prompt: str, model: str = "claude-3-opus") -> str`
+    - [x] Handle API errors
+  - [x] Configuration
+    - [x] Read LLM provider from ENV (`LLM_PROVIDER`, `LLM_MODEL`)
+    - [x] Default to Ollama
+    - [x] Support API keys from ENV
+    - [x] Support per-task model selection (optional)
+      - [x] `LLM_MODEL_DEDUPLICATION` (optional, overrides `LLM_MODEL` for deduplication)
+      - [x] `LLM_MODEL_TAGGING` (optional, overrides `LLM_MODEL` for tagging)
+      - [x] `LLM_MODEL_RULE_EXTRACTION` (optional, overrides `LLM_MODEL` for rule extraction)
+  - [x] Unified LLM call function
+    - [x] Function `call_llm(prompt: str, task: str = "default", model: str | None = None) -> str`
+      - [x] If `model` provided, use it directly
+      - [x] If `model` is None, look up task-specific model from config
+      - [x] Fall back to default `LLM_MODEL` if task-specific not set
+      - [x] Route to appropriate provider (Ollama/OpenAI/Anthropic) based on config
+  - [x] Add logging for LLM calls
+    - [x] Log prompt length
+    - [x] Log response length
+    - [x] Log task name and model used
+    - [x] Log errors
+    - [x] Log input/cached/output tokens (for cost tracking)
+- [x] Create unit tests
+  - [x] Test Ollama connection (mock or real)
+  - [x] Test OpenAI API (mock)
+  - [x] Test error handling
+  - [x] Test configuration
 
 **Files to Create:**
 ```
@@ -1094,52 +1107,82 @@ tests/
 - Must support cloud APIs (OpenAI, Anthropic) as optional
 - Must handle errors gracefully
 - Must be configurable via ENV
-- Must log LLM usage for cost tracking
+- Must support per-task model selection (allows different models for different tasks)
+- Must log LLM usage for cost tracking (including task name and model used)
 
 **Quick Start for Testing:**
 ```bash
 # Test Ollama connection
 python -c "from src.consolidation_app.llm_client import call_ollama; response = call_ollama('Hello'); print(response)"
 # Test with mock for cloud APIs
+# Test per-task model selection
+export LLM_MODEL_DEDUPLICATION=qwen2.5-coder:7b
+export LLM_MODEL_TAGGING=qwen2.5-coder:7b
+export LLM_MODEL_RULE_EXTRACTION=qwen2.5-coder:14b
+python -c "from src.consolidation_app.llm_client import call_llm; response = call_llm('Test', task='deduplication'); print(response)"
 ```
+
+**Per-Task Model Selection Benefits:**
+- **Performance**: Use smaller/faster models for simpler tasks (tagging, deduplication)
+- **Cost**: Use cheaper models where appropriate (local 7B models vs 14B or cloud APIs)
+- **Quality**: Use larger models for complex reasoning (rule extraction)
+- **Flexibility**: Mix local and cloud models (e.g., local for tagging, cloud for rule extraction)
+
+**Implementation Notes:**
+- `llm_client.py` provides unified interface for Ollama (default), OpenAI, and Anthropic APIs
+- All providers support retry logic with exponential backoff for transient failures
+- Rate limiting handled with Retry-After header support for cloud APIs
+- Configuration via ENV variables with per-task model selection support
+- Comprehensive logging includes prompt/response lengths, task names, models used, duration, and token counts
+- Token logging extracts and logs input tokens, cached tokens (where available), and output tokens for cost tracking:
+  - Ollama: `prompt_eval_count` (input) and `eval_count` (output)
+  - OpenAI: `prompt_tokens` (input), `cached_tokens` (if available), `completion_tokens` (output), `total_tokens`
+  - Anthropic: `input_tokens`, `cache_creation_input_tokens` + `cache_read_input_tokens` (cached), `output_tokens`
+- Unit tests cover all providers, error handling, retry logic, configuration scenarios, and token logging
+- LLM configuration added to `config/settings.py` for centralized management
+- Default timeout set to 120 seconds, configurable per call
+- All API keys read from environment variables (never hardcoded)
 
 ---
 
-### Phase 4.2: AI Deduplication ⬜
+### Phase 4.2: AI Deduplication ✅
 **Priority:** Critical  
 **Estimated Time:** 5-6 hours  
-**Dependencies:** Phase 4.1, Phase 3.3
+**Dependencies:** Phase 4.1, Phase 3.3  
+**Completed:** 2026-01-21
 
 **Tasks:**
-- [ ] Create `src/consolidation_app/deduplicator_ai.py`
-  - [ ] Function `deduplicate_errors_ai(new_entries: List[ErrorEntry], existing_entries: List[ErrorEntry], similarity_threshold: float = 0.85) -> List[ErrorEntry]`
-    - [ ] For each new entry, use LLM to find similar existing entries
-    - [ ] Calculate similarity score (0.0-1.0)
-    - [ ] If score >= threshold: merge into existing entry
-    - [ ] If no match: add as new entry
-    - [ ] Return consolidated list
-  - [ ] Function `calculate_similarity(entry1: ErrorEntry, entry2: ErrorEntry) -> float`
-    - [ ] Build LLM prompt comparing two errors
-    - [ ] Ask LLM to rate similarity (0.0-1.0) with reasoning
-    - [ ] Parse JSON response: `{"similarity": 0.95, "reason": "..."}`
-    - [ ] Return similarity score
-  - [ ] LLM prompt template
-    - [ ] Include error type, message, file, line, context
-    - [ ] Ask for similarity score and brief reason
-    - [ ] Specify JSON response format
+- [x] Create `src/consolidation_app/deduplicator_ai.py`
+  - [x] Function `deduplicate_errors_ai(new_entries: List[ErrorEntry], existing_entries: List[ErrorEntry], similarity_threshold: float = 0.85) -> List[ErrorEntry]`
+    - [x] For each new entry, use LLM to find similar existing entries
+    - [x] Calculate similarity score (0.0-1.0)
+    - [x] If score >= threshold: merge into existing entry
+    - [x] If no match: add as new entry
+    - [x] Return consolidated list
+  - [x] Function `calculate_similarity(entry1: ErrorEntry, entry2: ErrorEntry) -> float`
+    - [x] Build LLM prompt comparing two errors
+    - [x] Call LLM with task="deduplication" (uses `LLM_MODEL_DEDUPLICATION` if set)
+    - [x] Ask LLM to rate similarity (0.0-1.0) with reasoning
+    - [x] Parse JSON response: `{"similarity": 0.95, "reason": "..."}`
+    - [x] Return similarity score
+  - [x] LLM prompt template
+    - [x] Include error type, message, file, line, context
+    - [x] Ask for similarity score and brief reason
+    - [x] Specify JSON response format
   - [ ] Batch processing (optional optimization)
     - [ ] Process multiple comparisons in one LLM call
     - [ ] Reduce API costs
-  - [ ] Add error handling
-    - [ ] Handle LLM failures (fall back to exact match)
-    - [ ] Handle malformed JSON responses
-    - [ ] Handle timeout errors
-- [ ] Create unit tests
-  - [ ] Test similarity calculation (mock LLM)
-  - [ ] Test deduplication with similar errors
-  - [ ] Test deduplication with different errors
-  - [ ] Test threshold behavior
-  - [ ] Test error handling
+    - [ ] **Note:** Deferred to future optimization phase
+  - [x] Add error handling
+    - [x] Handle LLM failures (fall back to exact match)
+    - [x] Handle malformed JSON responses
+    - [x] Handle timeout errors
+- [x] Create unit tests
+  - [x] Test similarity calculation (mock LLM)
+  - [x] Test deduplication with similar errors
+  - [x] Test deduplication with different errors
+  - [x] Test threshold behavior
+  - [x] Test error handling
 
 **Files to Create:**
 ```
@@ -1165,36 +1208,51 @@ tests/
 # Verify different errors are kept separate
 ```
 
+**Implementation Notes:**
+- `deduplicator_ai.py` provides AI-powered semantic similarity comparison using LLM
+- `calculate_similarity` function calls LLM with task="deduplication" to use task-specific model if configured
+- LLM prompt includes error signature, type, file, line, context, and fix code for comprehensive comparison
+- JSON response parsing handles markdown code blocks and extracts similarity score (0.0-1.0) with validation
+- `deduplicate_errors_ai` function compares each new entry against all existing entries, selecting best match
+- Falls back to exact match deduplication on LLM failure (configurable via `fallback_to_exact` parameter)
+- Handles partial LLM failures gracefully (continues processing other entries)
+- Similarity threshold is configurable (default 0.85) and validated
+- Comprehensive logging includes similarity scores, merge counts, and LLM failure counts
+- Unit tests cover similarity calculation, deduplication scenarios, threshold behavior, error handling, and fallback mechanisms
+- Batch processing deferred to future optimization phase (current implementation processes entries sequentially)
+
 ---
 
-### Phase 4.3: AI Tagging ⬜
+### Phase 4.3: AI Tagging ✅
 **Priority:** Important  
 **Estimated Time:** 4-5 hours  
-**Dependencies:** Phase 4.1, Phase 3.4
+**Dependencies:** Phase 4.1, Phase 3.4  
+**Completed:** 2026-01-21
 
 **Tasks:**
-- [ ] Create `src/consolidation_app/tagger_ai.py`
-  - [ ] Function `generate_tags_ai(entry: ErrorEntry) -> List[str]`
-    - [ ] Build LLM prompt with error details
-    - [ ] Ask LLM to generate 3-5 context tags
-    - [ ] Parse JSON response: `{"tags": ["tag1", "tag2", "tag3"]}`
-    - [ ] Return list of tags
-  - [ ] LLM prompt template
-    - [ ] Include error signature, type, file, line, context
-    - [ ] Ask for tags: error type, framework/library, domain, platform
-    - [ ] Specify JSON response format
-    - [ ] Provide examples
-  - [ ] Combine with rule-based tags (optional)
-    - [ ] Use AI tags as primary
-    - [ ] Add rule-based tags for missing categories
-  - [ ] Add error handling
-    - [ ] Handle LLM failures (fall back to rule-based)
-    - [ ] Handle malformed JSON responses
-    - [ ] Handle timeout errors
-- [ ] Create unit tests
-  - [ ] Test tag generation (mock LLM)
-  - [ ] Test error handling
-  - [ ] Test tag quality (verify tags are useful)
+- [x] Create `src/consolidation_app/tagger_ai.py`
+  - [x] Function `generate_tags_ai(entry: ErrorEntry) -> List[str]`
+    - [x] Build LLM prompt with error details
+    - [x] Call LLM with task="tagging" (uses `LLM_MODEL_TAGGING` if set)
+    - [x] Ask LLM to generate 3-5 context tags
+    - [x] Parse JSON response: `{"tags": ["tag1", "tag2", "tag3"]}`
+    - [x] Return list of tags
+  - [x] LLM prompt template
+    - [x] Include error signature, type, file, line, context
+    - [x] Ask for tags: error type, framework/library, domain, platform
+    - [x] Specify JSON response format
+    - [x] Provide examples
+  - [x] Combine with rule-based tags (optional)
+    - [x] Use AI tags as primary
+    - [x] Add rule-based tags for missing categories
+  - [x] Add error handling
+    - [x] Handle LLM failures (fall back to rule-based)
+    - [x] Handle malformed JSON responses
+    - [x] Handle timeout errors
+- [x] Create unit tests
+  - [x] Test tag generation (mock LLM)
+  - [x] Test error handling
+  - [x] Test tag quality (verify tags are useful)
 
 **Files to Create:**
 ```
@@ -1219,33 +1277,46 @@ tests/
 # Verify fallback works if LLM fails
 ```
 
+**Implementation Notes:**
+- `tagger_ai.py` provides AI-powered tag generation using LLM with task="tagging" to use task-specific model if configured
+- `generate_tags_ai` function calls LLM with comprehensive prompt including error signature, type, file, line, context, and fix code
+- JSON response parsing handles markdown code blocks and extracts tags list with validation and normalization
+- Tag normalization: lowercase conversion, space/underscore to hyphen replacement, invalid character removal
+- Falls back to rule-based tagging on LLM failure (configurable via `fallback_to_rule_based` parameter)
+- Optional combination with rule-based tags (`combine_with_rule_based=True`) merges AI tags (primary) with rule-based tags for missing categories
+- Tag limits: MIN_TAGS=3, MAX_TAGS=5 (configurable constants)
+- Comprehensive error handling: LLM failures, malformed JSON, timeout errors, empty responses
+- `apply_tags_ai_to_entry` function merges AI-generated tags with existing entry tags, returning new ErrorEntry instance
+- Unit tests cover tag generation, normalization, error handling, fallback mechanisms, tag combination, and edge cases (empty tags, malformed JSON, timeout errors)
+
 ---
 
-### Phase 4.4: Fix Merging Logic ⬜
+### Phase 4.4: Fix Merging Logic ✅
 **Priority:** Important  
 **Estimated Time:** 3-4 hours  
-**Dependencies:** Phase 3.3
+**Dependencies:** Phase 3.3  
+**Completed:** 2026-01-21
 
 **Tasks:**
-- [ ] Enhance `src/consolidation_app/merger.py`
-  - [ ] Function `merge_fixes(entry: ErrorEntry) -> ErrorEntry`
-    - [ ] Group fixes by code similarity (fuzzy match)
-    - [ ] If same fix: increment success_count
-    - [ ] If different fix: add as variant with explanation
-    - [ ] Sort all fixes by success_count (highest first)
-  - [ ] Function `group_similar_fixes(fixes: List[Fix]) -> List[List[Fix]]`
-    - [ ] Compare fix code (normalize whitespace, comments)
-    - [ ] Use fuzzy string matching (Levenshtein distance or similar)
-    - [ ] Group fixes with similarity > 0.9
-  - [ ] Function `calculate_fix_similarity(fix1: Fix, fix2: Fix) -> float`
-    - [ ] Normalize code (remove whitespace differences, comments)
-    - [ ] Calculate similarity score
-    - [ ] Return 0.0-1.0 score
-- [ ] Create unit tests
-  - [ ] Test fix grouping (same fixes)
-  - [ ] Test fix grouping (different fixes)
-  - [ ] Test success count incrementing
-  - [ ] Test sorting by success count
+- [x] Enhance `src/consolidation_app/merger.py`
+  - [x] Function `merge_fixes(entries: List[ErrorEntry]) -> List[ErrorEntry]`
+    - [x] Group fixes by code similarity (fuzzy match)
+    - [x] If same fix: increment success_count
+    - [x] If different fix: add as variant with explanation
+    - [x] Sort all fixes by success_count (highest first)
+  - [x] Function `group_similar_fixes(fixes: List[Fix]) -> List[List[Fix]]`
+    - [x] Compare fix code (normalize whitespace, comments)
+    - [x] Use fuzzy string matching (SequenceMatcher ratio, similarity > 0.9)
+    - [x] Group fixes with similarity > 0.9
+  - [x] Function `calculate_fix_similarity(fix1: Fix, fix2: Fix) -> float`
+    - [x] Normalize code (remove whitespace differences, comments)
+    - [x] Calculate similarity score
+    - [x] Return 0.0-1.0 score
+- [x] Create unit tests
+  - [x] Test fix grouping (same fixes)
+  - [x] Test fix grouping (different fixes)
+  - [x] Test success count incrementing
+  - [x] Test sorting by success count
 
 **Files to Create/Modify:**
 ```
@@ -1271,6 +1342,9 @@ tests/
 # Verify sorting by success count
 ```
 
+**Implementation Notes:**
+- `merger.py` defines `Fix` dataclass (fix_code, explanation, result, success_count, error_type, file, line, tags) and `merge_fixes(entries: List[ErrorEntry]) -> List[ErrorEntry]`. Entries must share same (error_signature, error_type, file). Code normalized via whitespace collapse and `#` line-comment stripping; `difflib.SequenceMatcher` used for similarity (no extra deps). Same fixes merged (success_count summed); variants kept separate; output sorted by success_count descending. Unit tests cover grouping, success counts, sorting, and edge cases.
+
 ---
 
 ### Phase 4.5: Rule Extraction ⬜
@@ -1287,6 +1361,7 @@ tests/
     - [ ] Return list of ProcessRule objects
   - [ ] Function `extract_rules_from_group(group: List[ErrorEntry]) -> List[ProcessRule]`
     - [ ] Build LLM prompt with all process issues in group
+    - [ ] Call LLM with task="rule_extraction" (uses `LLM_MODEL_RULE_EXTRACTION` if set)
     - [ ] Ask LLM to extract general rules
     - [ ] Parse JSON response with rule structure
     - [ ] Return ProcessRule objects
@@ -1374,12 +1449,10 @@ At the end of Step 4, conduct comprehensive review:
     - [ ] Build from Dockerfile
     - [ ] Volume mount: projects directory (read-write)
     - [ ] Environment variables (ENV-first config)
-    - [ ] Depends on: ollama
-  - [ ] `ollama` service
-    - [ ] Image: `ollama/ollama`
-    - [ ] Volume: ollama data persistence
-    - [ ] Ports: 11434 (Ollama API)
-  - [ ] Volumes: ollama_data
+    - [ ] Configure Ollama connection to host machine
+      - [ ] For Windows/Mac: Use `OLLAMA_BASE_URL=http://host.docker.internal:11434`
+      - [ ] For Linux: Use `OLLAMA_BASE_URL=http://<host-ip>:11434` or configure `extra_hosts` with `host.docker.internal:host-gateway`
+    - [ ] Add `extra_hosts` entry for `host.docker.internal` (Windows/Mac) or configure host network access (Linux)
 - [ ] Create `.dockerignore`
   - [ ] Exclude unnecessary files
   - [ ] Exclude test files
@@ -1388,7 +1461,8 @@ At the end of Step 4, conduct comprehensive review:
   - [ ] Build image
   - [ ] Run container
   - [ ] Verify consolidation app works
-  - [ ] Verify Ollama connection
+  - [ ] Verify Ollama connection to host instance
+  - [ ] **Note:** Ollama must be running locally on the host machine (not in Docker)
 
 **Files to Create:**
 ```
@@ -1399,19 +1473,35 @@ docker-compose.yml
 
 **Key Requirements:**
 - Docker image must be minimal (slim base)
-- Docker Compose must include Ollama service
+- **Ollama runs locally on host machine** (not in Docker container)
+- Consolidation app connects to host's Ollama instance via `OLLAMA_BASE_URL`
+- For Docker containers: Use `host.docker.internal:11434` (Windows/Mac) or host IP (Linux)
 - Volume mounts must provide read-write access to projects
 - Environment variables must be configurable
 - Container must be production-ready
 
+**Ollama Setup Requirements:**
+- Ollama must be installed and running on the host machine
+- Default Ollama API endpoint: `http://localhost:11434` (when running directly on host)
+- For Docker containers: Configure `OLLAMA_BASE_URL` to point to host's Ollama instance
+- Ensure Ollama service is accessible from Docker container network
+
 **Quick Start for Testing:**
 ```bash
+# Ensure Ollama is running locally on host
+ollama serve  # or start Ollama service
+
 # Build image
 docker build -t ser-consolidation .
-# Run with docker-compose
+
+# Run with docker-compose (connects to host's Ollama)
 docker-compose up -d
+
 # Verify services are running
 docker-compose ps
+
+# Verify Ollama connection from container
+docker-compose exec consolidation-app python -c "from src.consolidation_app.llm_client import call_ollama; print(call_ollama('Hello'))"
 ```
 
 ---
@@ -1426,7 +1516,10 @@ docker-compose ps
   - [ ] Read configuration from ENV variables (primary)
     - [ ] `PROJECTS_ROOT` (required)
     - [ ] `LLM_PROVIDER` (default: "ollama")
-    - [ ] `LLM_MODEL` (default: "qwen2.5-coder:14b")
+    - [ ] `LLM_MODEL` (default: "qwen2.5-coder:14b", fallback for all tasks)
+    - [ ] `LLM_MODEL_DEDUPLICATION` (optional, overrides `LLM_MODEL` for similarity tasks)
+    - [ ] `LLM_MODEL_TAGGING` (optional, overrides `LLM_MODEL` for tagging tasks)
+    - [ ] `LLM_MODEL_RULE_EXTRACTION` (optional, overrides `LLM_MODEL` for rule extraction)
     - [ ] `CONSOLIDATION_SCHEDULE` (default: "0 2 * * *")
     - [ ] `SIMILARITY_THRESHOLD` (default: 0.85)
     - [ ] `LLM_API_KEY` (optional, for cloud APIs)
@@ -1435,6 +1528,15 @@ docker-compose ps
     - [ ] Read YAML if exists
     - [ ] ENV overrides YAML when both exist
     - [ ] YAML supports `consolidation.projects` list (extra_projects)
+    - [ ] YAML supports per-task model configuration:
+      ```yaml
+      llm:
+        default_model: "qwen2.5-coder:14b"
+        models:
+          deduplication: "qwen2.5-coder:7b"  # optional
+          tagging: "qwen2.5-coder:7b"      # optional
+          rule_extraction: "qwen2.5-coder:14b"  # optional
+      ```
   - [ ] Configuration validation
     - [ ] Check required ENV variables
     - [ ] Validate paths exist
@@ -1471,6 +1573,7 @@ tests/
 - ENV variables must be primary configuration method
 - YAML must be optional (for projects list, advanced overrides)
 - ENV must override YAML when both exist
+- Per-task model selection must be supported (ENV and YAML)
 - Configuration must be validated
 - Must be documented clearly
 
@@ -1951,6 +2054,35 @@ At the end of Step 6, conduct comprehensive review:
 6. **Step 6:** Testing and docs (requires all steps)
    - All phases can be done in parallel
 
+### LLM Model Selection Strategy
+
+**Per-Task Model Configuration:**
+The system supports selecting different LLM models for different tasks, allowing optimization of performance, cost, and quality:
+
+- **Deduplication** (`LLM_MODEL_DEDUPLICATION`): Semantic similarity comparison
+  - Recommended: Smaller/faster models (7B-14B) for quick comparisons
+  - Example: `qwen2.5-coder:7b` or `deepseek-coder:7b`
+  
+- **Tagging** (`LLM_MODEL_TAGGING`): Generate context tags for errors
+  - Recommended: Smaller/faster models (7B-14B) for structured output
+  - Example: `qwen2.5-coder:7b` or `deepseek-coder:7b`
+  
+- **Rule Extraction** (`LLM_MODEL_RULE_EXTRACTION`): Extract coding rules from process issues
+  - Recommended: Larger models (14B+) or cloud APIs for complex reasoning
+  - Example: `qwen2.5-coder:14b`, `gpt-4`, or `claude-3-opus`
+
+**Configuration Priority:**
+1. Task-specific ENV variable (e.g., `LLM_MODEL_DEDUPLICATION`) - highest priority
+2. Task-specific YAML config (e.g., `llm.models.deduplication`)
+3. Default `LLM_MODEL` ENV variable - fallback for all tasks
+4. Default `LLM_MODEL` YAML config - final fallback
+
+**Benefits:**
+- Use cheaper/faster models for simpler tasks (tagging, deduplication)
+- Use more capable models for complex reasoning (rule extraction)
+- Mix local and cloud models based on task requirements
+- Optimize cost and performance per use case
+
 ### Testing Strategy
 
 **After Each Phase:**
@@ -2029,10 +2161,10 @@ Security reviews are conducted at key milestones after each Step:
 **Step 1 (Core File Formats and Bootstrap):** 4/4 completed (100%) ✅ - 1.1 ✅, 1.2 ✅, 1.3 ✅, 1.4 ✅  
 **Step 2 (Agent Integration):** 4.8/5 completed (96%) - 2.1 ✅, 2.2 ✅, 2.3 ✅ (verified), 2.4 ✅, 2.5 🟡 (manual workflow complete, command-based workflow optional)  
 **Step 3 (Consolidation App - Core):** 5/6 completed (83%) - 3.1 ✅, 3.2 ✅, 3.3 ✅, 3.4 ✅, 3.5 ✅, 3.6 ⬜  
-**Step 4 (Consolidation App - AI):** 0/5 completed (0%) - 4.1 ⬜, 4.2 ⬜, 4.3 ⬜, 4.4 ⬜, 4.5 ⬜  
+**Step 4 (Consolidation App - AI):** 3/5 completed (60%) - 4.1 ✅, 4.2 ✅, 4.3 ✅, 4.4 ⬜, 4.5 ⬜  
 **Step 5 (Docker/Config/Scheduling):** 0/4 completed (0%) - 5.1 ⬜, 5.2 ⬜, 5.3 ⬜, 5.4 ⬜  
 **Step 6 (Testing and Refinement):** 0/4 completed (0%) - 6.1 ⬜, 6.2 ⬜, 6.3 ⬜, 6.4 ⬜  
-**Overall Progress:** 13/28 completed (46%)
+**Overall Progress:** 16/28 completed (57%)
 
 **Blocked Items:**
 - None currently

@@ -59,8 +59,15 @@ def clean_env(monkeypatch):
         "DATABASE_PORT",
         "LOG_DIR",
         "DATA_DIR",
+        "API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
     ]
     for var in env_vars_to_remove:
         monkeypatch.delenv(var, raising=False)
+    # Mock load_dotenv to prevent .env file from being loaded during module reload
+    # Mock both locations where load_dotenv might be called
+    monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
+    monkeypatch.setattr("config.settings.load_dotenv", lambda: None)
     yield
     # Cleanup happens automatically when fixture goes out of scope

@@ -56,6 +56,41 @@ SHOW_STACK_TRACE: bool = os.getenv("SHOW_STACK_TRACE", "True").lower() == "true"
 
 API_KEY: Optional[str] = os.getenv("API_KEY")
 OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+
+
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+
+# Default provider and model (fallback for all tasks)
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama").lower()
+LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen2.5-coder:14b")
+
+# Per-task providers (optional - overrides default provider for specific tasks)
+LLM_PROVIDER_DEDUPLICATION: Optional[str] = (
+    os.getenv("LLM_PROVIDER_DEDUPLICATION").lower()
+    if os.getenv("LLM_PROVIDER_DEDUPLICATION")
+    else None
+)
+LLM_PROVIDER_TAGGING: Optional[str] = (
+    os.getenv("LLM_PROVIDER_TAGGING").lower()
+    if os.getenv("LLM_PROVIDER_TAGGING")
+    else None
+)
+LLM_PROVIDER_RULE_EXTRACTION: Optional[str] = (
+    os.getenv("LLM_PROVIDER_RULE_EXTRACTION").lower()
+    if os.getenv("LLM_PROVIDER_RULE_EXTRACTION")
+    else None
+)
+
+# Per-task models (optional - overrides default model for specific tasks)
+LLM_MODEL_DEDUPLICATION: Optional[str] = os.getenv("LLM_MODEL_DEDUPLICATION")
+LLM_MODEL_TAGGING: Optional[str] = os.getenv("LLM_MODEL_TAGGING")
+LLM_MODEL_RULE_EXTRACTION: Optional[str] = os.getenv("LLM_MODEL_RULE_EXTRACTION")
+
+# Ollama configuration
+OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 
 # ============================================================================

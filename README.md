@@ -93,6 +93,178 @@ python -m src.consolidation_app.main --root /path/to/projects --extra /other/pro
 - Path validation (prevents directory traversal attacks)
 - Error isolation (one project failure doesn't stop others)
 
+### 5. LLM Configuration (Step 4 - AI Integration)
+
+The consolidation app supports per-task provider and model selection, allowing you to mix local and cloud providers for optimal performance, cost, and quality. Configure using a `.env` file (recommended) or environment variables.
+
+#### Quick Setup: Create `.env` File
+
+Create a `.env` file in the project root with your LLM configuration:
+
+```bash
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+
+# Default provider and model (fallback for all tasks)
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5-coder:14b
+
+# Per-task providers (optional - overrides default provider for specific tasks)
+# Allows mixing local (Ollama) and cloud (OpenAI/Anthropic) providers
+LLM_PROVIDER_DEDUPLICATION=ollama
+LLM_PROVIDER_TAGGING=openai
+LLM_PROVIDER_RULE_EXTRACTION=anthropic
+
+# Per-task models (optional - overrides default model for specific tasks)
+LLM_MODEL_DEDUPLICATION=qwen2.5-coder:7b          # Semantic similarity
+LLM_MODEL_TAGGING=gpt-4o-mini                     # Tag generation
+LLM_MODEL_RULE_EXTRACTION=claude-3-opus-20240229  # Rule extraction
+
+# Ollama configuration (only if using Ollama)
+# OLLAMA_BASE_URL=http://localhost:11434
+
+# API Keys (only needed for cloud providers)
+# OPENAI_API_KEY=sk-your-openai-api-key-here
+# ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
+```
+
+#### Configuration Examples
+
+**Example 1: All Local (Ollama)**
+```bash
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5-coder:14b
+LLM_MODEL_DEDUPLICATION=qwen2.5-coder:7b
+LLM_MODEL_TAGGING=qwen2.5-coder:7b
+LLM_MODEL_RULE_EXTRACTION=qwen2.5-coder:14b
+```
+
+**Example 2: All Cloud (OpenAI)**
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-openai-api-key-here
+LLM_MODEL=gpt-4o-mini
+LLM_MODEL_DEDUPLICATION=gpt-4o-mini
+LLM_MODEL_TAGGING=gpt-4o-mini
+LLM_MODEL_RULE_EXTRACTION=gpt-4
+```
+
+**Example 3: Mix Local and Cloud (Recommended for Cost Optimization)**
+```bash
+# Default: Use Ollama for most tasks
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5-coder:14b
+
+# Use local Ollama for fast/cheap tasks
+LLM_PROVIDER_DEDUPLICATION=ollama
+LLM_MODEL_DEDUPLICATION=qwen2.5-coder:7b
+
+LLM_PROVIDER_TAGGING=ollama
+LLM_MODEL_TAGGING=qwen2.5-coder:7b
+
+# Use cloud for complex reasoning
+LLM_PROVIDER_RULE_EXTRACTION=openai
+LLM_MODEL_RULE_EXTRACTION=gpt-4
+OPENAI_API_KEY=sk-your-openai-api-key-here
+```
+
+**Example 4: Mix All Three Providers**
+```bash
+# Default fallback
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5-coder:14b
+
+# Ollama for deduplication (fast, free)
+LLM_PROVIDER_DEDUPLICATION=ollama
+LLM_MODEL_DEDUPLICATION=qwen2.5-coder:7b
+
+# OpenAI for tagging (fast, cost-effective)
+LLM_PROVIDER_TAGGING=openai
+LLM_MODEL_TAGGING=gpt-4o-mini
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# Anthropic for rule extraction (best reasoning)
+LLM_PROVIDER_RULE_EXTRACTION=anthropic
+LLM_MODEL_RULE_EXTRACTION=claude-3-opus-20240229
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
+```
+
+#### Recommended Models by Task
+
+**Local Models (Ollama):**
+- **Deduplication** (`LLM_MODEL_DEDUPLICATION`): 
+  - `qwen2.5-coder:7b` - Fast, good for similarity comparison
+  - `deepseek-coder:7b` - Alternative fast option
+  
+- **Tagging** (`LLM_MODEL_TAGGING`):
+  - `qwen2.5-coder:7b` - Fast, good for structured JSON output
+  - `deepseek-coder:7b` - Alternative fast option
+  
+- **Rule Extraction** (`LLM_MODEL_RULE_EXTRACTION`):
+  - `qwen2.5-coder:14b` - Better reasoning for complex rule extraction
+  - `deepseek-coder:14b` - Alternative larger model
+
+**Cloud Models:**
+- **Deduplication** (`LLM_MODEL_DEDUPLICATION`):
+  - OpenAI: `gpt-4o-mini` (fast, cost-effective)
+  - Anthropic: `claude-3-haiku-20240307` (fast, cost-effective)
+  
+- **Tagging** (`LLM_MODEL_TAGGING`):
+  - OpenAI: `gpt-4o-mini` (fast, good JSON output)
+  - Anthropic: `claude-3-haiku-20240307` (fast, good JSON output)
+  
+- **Rule Extraction** (`LLM_MODEL_RULE_EXTRACTION`):
+  - OpenAI: `gpt-4` or `gpt-4-turbo` (better reasoning)
+  - Anthropic: `claude-3-opus-20240229` (best reasoning)
+
+#### Setup Instructions
+
+**For Local (Ollama):**
+1. Install Ollama: https://ollama.ai
+2. Start Ollama: `ollama serve`
+3. Pull models: `ollama pull qwen2.5-coder:7b` and `ollama pull qwen2.5-coder:14b`
+4. Create `.env` file with configuration above
+
+**For Cloud (OpenAI/Anthropic):**
+1. Get API key from provider dashboard
+2. Create `.env` file with `LLM_PROVIDER` and `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+3. Configure models as shown above
+
+#### Configuration Priority
+
+For each task, the system uses this priority:
+
+1. **Provider Selection:**
+   - Task-specific provider (e.g., `LLM_PROVIDER_DEDUPLICATION`) if set
+   - Default provider (`LLM_PROVIDER`) otherwise
+
+2. **Model Selection:**
+   - Explicit model parameter (if provided in code)
+   - Task-specific model (e.g., `LLM_MODEL_DEDUPLICATION`) if set
+   - Default model (`LLM_MODEL`) otherwise
+
+This allows you to:
+- Use different providers for different tasks (mix local and cloud)
+- Use different models for different tasks (optimize cost/quality)
+- Override defaults per task without affecting others
+
+#### Alternative: Shell Environment Variables
+
+If you prefer shell commands (temporary, only for current session):
+
+```bash
+export LLM_PROVIDER=ollama
+export LLM_MODEL=qwen2.5-coder:14b
+export LLM_PROVIDER_DEDUPLICATION=ollama
+export LLM_MODEL_DEDUPLICATION=qwen2.5-coder:7b
+export LLM_PROVIDER_TAGGING=openai
+export LLM_MODEL_TAGGING=gpt-4o-mini
+export OPENAI_API_KEY=sk-your-key-here
+```
+
+**Note:** `.env` file is automatically loaded and persists across sessions. Shell `export` commands only work for the current terminal session.
+
 ---
 
 ## Documentation
