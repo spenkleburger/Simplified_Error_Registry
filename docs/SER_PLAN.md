@@ -191,19 +191,21 @@ ProcessRule:
 
 ### 11. Consolidation App Architecture
 
-**Module Structure:**
+**Module Structure (Step 3 Complete):**
 ```
 consolidation_app/
-├── main.py              # Entry point, scheduler
-├── discovery.py         # Find all projects
-├── parser.py            # Parse markdown files
-├── deduplicator.py      # AI-based deduplication
-├── tagger.py            # AI-based tagging
-├── merger.py            # Merge fixes and order by success
-├── rule_extractor.py    # Extract process rules
-├── writer.py            # Write consolidated files
-├── config.py            # Configuration (ENV-first)
-└── requirements.txt     # Dependencies
+├── main.py              # Entry point, CLI, consolidation workflow ✅
+├── discovery.py         # Find all projects ✅
+├── parser.py            # Parse markdown files ✅ (enhanced with parse_fix_repo, parse_coding_tips)
+├── deduplicator.py      # Exact match deduplication ✅ (AI-based coming in Step 4)
+├── tagger.py            # Rule-based tagging ✅ (AI-based coming in Step 4)
+├── generator.py         # Generate consolidated markdown ✅
+├── writer.py            # Write consolidated files ✅ (with atomic writes)
+├── consolidation.py     # Parser integration helper ✅
+└── (Future Step 4):
+    ├── llm_client.py    # LLM integration ⬜
+    ├── merger.py        # AI fix merging ⬜
+    └── rule_extractor.py # Extract process rules ⬜
 ```
 
 **Configuration:**
@@ -427,13 +429,17 @@ Each major step contains smaller phases. At the end of each phase, all code is t
 - Phase 2.4: End-to-end agent workflow testing
 - **End of Step 2:** Code review, security review, testing complete
 
-**Step 3: Consolidation App - Core**
-- Phase 3.1: Discovery module
-- Phase 3.2: Parser integration
-- Phase 3.3: Basic deduplication (exact match)
-- Phase 3.4: Basic tagging (rule-based)
-- Phase 3.5: Writer module
-- **End of Step 3:** Code review, security review, testing complete
+**Step 3: Consolidation App - Core** ✅ Complete (2026-01-21)
+- Phase 3.1: Discovery module ✅
+- Phase 3.2: Parser integration ✅
+- Phase 3.3: Basic deduplication (exact match) ✅
+- Phase 3.4: Basic tagging (rule-based) ✅
+- Phase 3.5: Writer module ✅
+- Phase 3.6: Main consolidation workflow ✅
+- **End of Step 3:** Code review, security review, testing complete ✅
+  - Security improvements: Atomic writes, path validation implemented
+  - 93 tests passing (unit + integration)
+  - CLI with --root, --config, --dry-run flags
 
 **Step 4: Consolidation App - AI Integration**
 - Phase 4.1: LLM client integration

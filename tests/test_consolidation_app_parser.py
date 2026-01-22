@@ -173,3 +173,69 @@ def test_empty_file_returns_no_entries(tmp_path):
     path = tmp_path / "errors_and_fixes.md"
     path.write_text("", encoding="utf-8")
     assert parser.parse_errors_and_fixes(path) == []
+
+
+def test_parse_fix_repo_roundtrip(tmp_path):
+    """Parse fix_repo.md produced by generator; round-trip preserves key fields."""
+    from datetime import datetime, timezone
+
+    from src.consolidation_app.generator import generate_fix_repo_markdown
+
+    entry = parser.ErrorEntry(
+        error_signature="TestError",
+        error_type="TypeError",
+        file="src/a.py",
+        line=1,
+        fix_code="x = 1",
+        explanation="Why it works",
+        result="Solved",
+        success_count=2,
+        tags=["tag1"],
+        timestamp=datetime(2025, 1, 2, 12, 0, 0, tzinfo=timezone.utc),
+        is_process_issue=False,
+    )
+    md = generate_fix_repo_markdown([entry])
+    path = tmp_path / "fix_repo.md"
+    path.write_text(md, encoding="utf-8")
+
+    entries = parser.parse_fix_repo(path)
+    assert len(entries) == 1
+    e = entries[0]
+    assert e.error_signature == "TestError"
+    assert e.error_type == "TypeError"
+    assert e.file == "src/a.py"
+    assert e.success_count == 2
+    assert e.fix_code == "x = 1"
+    assert e.explanation == "Why it works"
+    assert e.tags == ["tag1"]
+    assert not e.is_process_issue
+
+
+def test_parse_coding_tips_roundtrip(tmp_path):
+    """Parse coding_tips.md produced by generator; round-trip preserves key fields."""
+    from src.consolidation_app.generator import generate_coding_tips_markdown
+    from src.consolidation_app.parser import DEFAULT_TIMESTAMP
+
+    entry = parser.ErrorEntry(
+        error_signature="Rule title",
+        error_type="agent-process",
+        file="",
+        line=0,
+        fix_code="Always do X",
+        explanation="Why",
+        result="Violation",
+        success_count=1,
+        tags=["category"],
+        timestamp=DEFAULT_TIMESTAMP,
+        is_process_issue=True,
+    )
+    md = generate_coding_tips_markdown([entry])
+    path = tmp_path / "coding_tips.md"
+    path.write_text(md, encoding="utf-8")
+
+    entries = parser.parse_coding_tips(path)
+    assert len(entries) == 1
+    e = entries[0]
+    assert e.error_signature == "Rule title"
+    assert e.is_process_issue
+    assert "category" in e.tags

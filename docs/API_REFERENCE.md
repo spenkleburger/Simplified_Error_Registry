@@ -1,9 +1,9 @@
 # API Reference - Consolidation App
 
 > **Last Updated:** 2026-01-21  
-> **Status:** Step 1 Complete (Parser & Generator modules)
+> **Status:** Step 3 Complete (All core modules implemented)
 
-This document provides API reference for the consolidation app modules implemented in Step 1.
+This document provides API reference for the consolidation app modules implemented in Steps 1-3.
 
 ---
 
@@ -11,8 +11,13 @@ This document provides API reference for the consolidation app modules implement
 
 1. [Parser Module](#parser-module)
 2. [Generator Module](#generator-module)
-3. [Data Structures](#data-structures)
-4. [Security Considerations](#security-considerations)
+3. [Discovery Module](#discovery-module)
+4. [Deduplicator Module](#deduplicator-module)
+5. [Tagger Module](#tagger-module)
+6. [Writer Module](#writer-module)
+7. [Main Module](#main-module)
+8. [Data Structures](#data-structures)
+9. [Security Considerations](#security-considerations)
 
 ---
 
@@ -88,6 +93,58 @@ for entry in entries:
 - Missing metadata fields → Uses empty string or 0
 - Empty code blocks → Returns empty string
 - Invalid markdown → Logs warning, skips entry
+
+### `parse_fix_repo(file_path: Path) -> List[ErrorEntry]`
+
+**Description:** Parse `fix_repo.md` (generator output) back into ErrorEntry list. Enables incremental consolidation by reading existing consolidated files.
+
+**Parameters:**
+- `file_path` (Path): Path to `fix_repo.md` file
+
+**Returns:**
+- `List[ErrorEntry]`: List of parsed error entries (all `is_process_issue=False`)
+
+**Behavior:**
+- Returns empty list if file doesn't exist
+- Returns empty list if file is empty
+- Parses `##` sections (error signatures) and `### Fix N:` blocks
+- Unescapes markdown headers (reverses generator escaping)
+- Handles "None" tags (treats as empty list)
+
+**Example:**
+```python
+from pathlib import Path
+from src.consolidation_app.parser import parse_fix_repo
+
+existing_errors = parse_fix_repo(Path(".errors_fixes/fix_repo.md"))
+# Use with deduplicator to merge new entries with existing
+```
+
+### `parse_coding_tips(file_path: Path) -> List[ErrorEntry]`
+
+**Description:** Parse `coding_tips.md` (generator output) back into ErrorEntry list. Enables incremental consolidation.
+
+**Parameters:**
+- `file_path` (Path): Path to `coding_tips.md` file
+
+**Returns:**
+- `List[ErrorEntry]`: List of parsed process issue entries (all `is_process_issue=True`)
+
+**Behavior:**
+- Returns empty list if file doesn't exist
+- Returns empty list if file is empty
+- Parses `##` sections (categories) and `### Rule:` blocks
+- Unescapes markdown headers
+- Extracts success count from "Related Errors" section if present
+
+**Example:**
+```python
+from pathlib import Path
+from src.consolidation_app.parser import parse_coding_tips
+
+existing_rules = parse_coding_tips(Path(".errors_fixes/coding_tips.md"))
+# Use with deduplicator to merge new process issues with existing
+```
 
 ---
 
@@ -285,6 +342,305 @@ formatted = format_timestamp(dt)
 
 ---
 
+## Discovery Module
+
+**Location:** `src/consolidation_app/discovery.py`
+
+### `discover_projects(root_path: Path, extra_projects: list[str] | None = None) -> list[Path]`
+
+**Description:** Discover all projects with `.errors_fixes/errors_and_fixes.md` files.
+
+**Parameters:**
+- `root_path` (Path): Root directory to search recursively
+- `extra_projects` (list[str] | None): Optional list of project paths outside scan root
+
+**Returns:**
+- `list[Path]`: List of project root paths (deduplicated, order preserved)
+
+**Behavior:**
+- Uses `rglob()` to find all `.errors_fixes/errors_and_fixes.md` files
+- For `extra_projects`: validates paths, auto-bootstraps if missing, resolves to absolute
+- Deduplicates projects (preserves order)
+- Handles permission errors gracefully (continues with extra_projects)
+
+**Security:**
+- Validates `extra_projects` paths to reject directory traversal patterns
+- Rejects empty/whitespace-only paths
+- Logs warnings for suspicious paths
+
+**Example:**
+```python
+from pathlib import Path
+from src.consolidation_app.discovery import discover_projects
+
+projects = discover_projects(Path("/home/user/projects"))
+# Returns: [Path('/home/user/projects/proj1'), Path('/home/user/projects/proj2')]
+
+# With extra projects
+projects = discover_projects(
+    Path("/home/user/projects"),
+    extra_projects=["/other/project1", "/other/project2"]
+)
+```
+
+**Raises:**
+- `FileNotFoundError`: If root_path doesn't exist
+- `NotADirectoryError`: If root_path is not a directory
+- `ValueError`: If extra_projects contains invalid paths
+
+---
+
+## Deduplicator Module
+
+**Location:** `src/consolidation_app/deduplicator.py`
+
+### `deduplicate_errors_exact(new_entries: List[ErrorEntry], existing_entries: List[ErrorEntry]) -> List[ErrorEntry]`
+
+**Description:** Deduplicate new entries against existing entries using exact match.
+
+**Parameters:**
+- `new_entries` (List[ErrorEntry]): New entries to deduplicate
+- `existing_entries` (List[ErrorEntry]): Existing entries to match against
+
+**Returns:**
+- `List[ErrorEntry]`: Consolidated list with duplicates merged where possible
+
+**Match Criteria:**
+- `error_signature` (exact match)
+- `error_type` (exact match)
+- `file` (exact match)
+
+**Behavior:**
+- If match found and `fix_code` is same: merges entries (increments success_count)
+- If match found but `fix_code` differs: keeps both as variants
+- If no match: adds as new entry
+- Returns existing entries if new_entries is empty
+- Returns new entries if existing_entries is empty
+
+**Example:**
+```python
+from src.consolidation_app.deduplicator import deduplicate_errors_exact
+
+consolidated = deduplicate_errors_exact(new_entries, existing_entries)
+# Merges duplicates, keeps variants, adds new entries
+```
+
+### `merge_entries(existing: ErrorEntry, new: ErrorEntry) -> ErrorEntry`
+
+**Description:** Merge two entries with matching signature/type/file and same fix_code.
+
+**Parameters:**
+- `existing` (ErrorEntry): Existing entry to merge into
+- `new` (ErrorEntry): New entry to merge
+
+**Returns:**
+- `ErrorEntry`: New ErrorEntry with merged data
+
+**Merging Logic:**
+- `timestamp`: Uses newer timestamp
+- `success_count`: Sums both counts
+- `tags`: Union of both tag lists (deduplicated, sorted)
+- `result`: Prefers "✅ Solved" if either is solved
+- `explanation`: Uses existing (or new if existing is empty)
+
+---
+
+## Tagger Module
+
+**Location:** `src/consolidation_app/tagger.py`
+
+### `generate_tags_rule_based(entry: ErrorEntry) -> List[str]`
+
+**Description:** Generate tags for an entry using rule-based detection.
+
+**Parameters:**
+- `entry` (ErrorEntry): ErrorEntry to generate tags for
+
+**Returns:**
+- `List[str]`: List of tags (typically 3-5 tags)
+
+**Tag Types Generated:**
+1. **Error type tag**: From `error_type` field (e.g., "file-io", "type-conversion")
+2. **Framework/library tag**: From file path or error context (e.g., "docker", "django", "pytest")
+3. **Domain tag**: From error context or file location (e.g., "networking", "database", "authentication")
+4. **Platform tag**: From error message or file path (e.g., "windows", "linux", "macos")
+
+**Example:**
+```python
+from src.consolidation_app.tagger import generate_tags_rule_based
+
+tags = generate_tags_rule_based(entry)
+# Returns: ["file-io", "docker", "networking", "linux"]
+```
+
+### `apply_tags_to_entry(entry: ErrorEntry) -> ErrorEntry`
+
+**Description:** Merge rule-based tags with entry's existing tags and return a new ErrorEntry.
+
+**Parameters:**
+- `entry` (ErrorEntry): ErrorEntry to enhance with generated tags
+
+**Returns:**
+- `ErrorEntry`: New ErrorEntry with tags = sorted(set(entry.tags) | set(generated))
+
+**Example:**
+```python
+from src.consolidation_app.tagger import apply_tags_to_entry
+
+# Entry has existing tags: ["custom-tag"]
+enhanced = apply_tags_to_entry(entry)
+# Enhanced has: ["custom-tag", "file-io", "docker", "linux"] (merged and sorted)
+```
+
+---
+
+## Writer Module
+
+**Location:** `src/consolidation_app/writer.py`
+
+### `write_fix_repo(project_path: Path, consolidated_entries: List[ErrorEntry]) -> None`
+
+**Description:** Write `fix_repo.md` with consolidated error entries.
+
+**Parameters:**
+- `project_path` (Path): Path to project root directory
+- `consolidated_entries` (List[ErrorEntry]): List of consolidated ErrorEntry objects
+
+**Behavior:**
+- Filters entries where `is_process_issue=False`
+- Generates markdown using `generate_fix_repo_markdown()`
+- Writes to `project_path/.errors_fixes/fix_repo.md`
+- Creates directory if missing
+- Uses UTF-8 encoding and LF line endings
+- **Atomic write**: Writes to temp file, then renames (prevents partial writes)
+
+**Raises:**
+- `PermissionError`: If file cannot be written due to permissions
+- `OSError`: If file operations fail for other reasons
+
+**Example:**
+```python
+from pathlib import Path
+from src.consolidation_app.writer import write_fix_repo
+
+write_fix_repo(Path("/path/to/project"), consolidated_entries)
+```
+
+### `write_coding_tips(project_path: Path, process_entries: List[ErrorEntry]) -> None`
+
+**Description:** Write `coding_tips.md` with consolidated process issue entries.
+
+**Parameters:**
+- `project_path` (Path): Path to project root directory
+- `process_entries` (List[ErrorEntry]): List of ErrorEntry objects (should be process issues)
+
+**Behavior:**
+- Filters entries where `is_process_issue=True`
+- Generates markdown using `generate_coding_tips_markdown()`
+- Writes to `project_path/.errors_fixes/coding_tips.md`
+- Creates directory if missing
+- Uses UTF-8 encoding and LF line endings
+- **Atomic write**: Writes to temp file, then renames
+
+**Raises:**
+- `PermissionError`: If file cannot be written due to permissions
+- `OSError`: If file operations fail for other reasons
+
+### `clear_errors_and_fixes(project_path: Path) -> None`
+
+**Description:** Clear `errors_and_fixes.md` but keep the file with header only.
+
+**Parameters:**
+- `project_path` (Path): Path to project root directory
+
+**Behavior:**
+- Replaces file contents with header only (preserves file structure)
+- Keeps the file (doesn't delete it)
+- Uses UTF-8 encoding and LF line endings
+- **Atomic write**: Writes to temp file, then renames
+- Logs warning if file doesn't exist (skips operation)
+
+**Raises:**
+- `PermissionError`: If file cannot be read/written due to permissions
+- `OSError`: If file operations fail for other reasons
+
+---
+
+## Main Module
+
+**Location:** `src/consolidation_app/main.py`
+
+### `consolidate_all_projects(root_path: Path, extra_projects: list[str] | None = None, *, dry_run: bool = False) -> ConsolidationResult`
+
+**Description:** Discover projects, consolidate each (parse, deduplicate, tag, write, clear).
+
+**Parameters:**
+- `root_path` (Path): Root directory to search for projects
+- `extra_projects` (list[str] | None): Optional list of project paths to include
+- `dry_run` (bool): If True, do not write files; only log intended actions
+
+**Returns:**
+- `ConsolidationResult`: Dataclass with `ok_count`, `fail_count`, and `all_ok` property
+
+**Workflow (per project):**
+1. Parse `errors_and_fixes.md`
+2. Parse `fix_repo.md` (if exists)
+3. Parse `coding_tips.md` (if exists)
+4. Deduplicate errors (new vs existing from fix_repo)
+5. Deduplicate process issues (new vs existing from coding_tips)
+6. Apply tags (merge with existing)
+7. Write `fix_repo.md`, `coding_tips.md`
+8. Clear `errors_and_fixes.md` (unless dry_run)
+
+**Error Handling:**
+- Continues processing other projects if one fails
+- Logs errors for each project
+- Returns success/failure counts
+
+**Example:**
+```python
+from pathlib import Path
+from src.consolidation_app.main import consolidate_all_projects
+
+result = consolidate_all_projects(Path("/home/user/projects"), dry_run=False)
+print(f"Processed {result.ok_count} projects, {result.fail_count} failed")
+```
+
+### `ConsolidationResult`
+
+**Description:** Result of `consolidate_all_projects()`.
+
+**Fields:**
+- `ok_count` (int): Number of projects successfully consolidated
+- `fail_count` (int): Number of projects that failed
+
+**Properties:**
+- `all_ok` (bool): True if `fail_count == 0`
+
+### CLI Usage
+
+```bash
+# Run consolidation
+python -m src.consolidation_app.main --root /path/to/projects
+
+# Dry-run (preview without writing)
+python -m src.consolidation_app.main --root /path/to/projects --dry-run
+
+# With config file (reserved for future use)
+python -m src.consolidation_app.main --root /path/to/projects --config config.yaml
+```
+
+**Arguments:**
+- `--root` (required): Root directory to search for projects
+- `--config` (optional): Config file path (currently ignored, reserved for future)
+- `--dry-run`: Do not write files; only log intended actions
+
+**Exit Codes:**
+- `0`: All projects processed successfully
+- `1`: One or more projects failed
+
+---
+
 ## Data Structures
 
 ### ErrorEntry
@@ -333,6 +689,35 @@ See [Parser Module](#errorentry) for full definition.
 - No direct file I/O (pure transformation)
 - All input comes from parsed ErrorEntry objects
 - No user input accepted
+
+**Discovery:**
+- Validates `extra_projects` paths to reject directory traversal patterns
+- Rejects empty/whitespace-only paths
+- Logs warnings for suspicious paths
+- Uses `Path.resolve()` to normalize paths
+
+### Atomic Writes
+
+**Writer Module:**
+- All file writes use temp file + atomic rename pattern
+- Prevents partial writes on interruption (power loss, crash, etc.)
+- Temp files are cleaned up on errors
+- Atomic rename on most filesystems (Windows, Linux, macOS)
+
+**Implementation:**
+```python
+temp_file = output_file.with_suffix(".tmp")
+temp_file.write_text(content, encoding="utf-8", newline="\n")
+temp_file.replace(output_file)  # Atomic rename
+```
+
+### Path Security
+
+**Discovery Module:**
+- Validates `extra_projects` input strings before resolution
+- Rejects patterns like `../../etc/passwd`, `..\\..\\windows\\system32`
+- Uses `Path.resolve()` for normalization
+- Validates paths exist and are directories before processing
 
 ### Logging
 
@@ -408,25 +793,38 @@ for entry in entries:
 
 ## Version Information
 
-**Current Version:** v1.0 (Step 1 Complete)
+**Current Version:** v1.0 (Step 3 Complete)
 
 **Implemented Modules:**
-- ✅ Parser (`parser.py`)
-- ✅ Generator (`generator.py`)
+- ✅ Parser (`parser.py`) - Step 1.3, 3.6 (enhanced with parse_fix_repo, parse_coding_tips)
+- ✅ Generator (`generator.py`) - Step 1.4
+- ✅ Discovery (`discovery.py`) - Step 3.1
+- ✅ Deduplicator (`deduplicator.py`) - Step 3.3
+- ✅ Tagger (`tagger.py`) - Step 3.4
+- ✅ Writer (`writer.py`) - Step 3.5
+- ✅ Main (`main.py`) - Step 3.6
 
 **Planned Modules (Future Steps):**
-- ⬜ Discovery (`discovery.py`) - Step 3.1
-- ⬜ Deduplicator (`deduplicator.py`) - Step 3.3, 4.2
-- ⬜ Tagger (`tagger.py`) - Step 3.4, 4.3
-- ⬜ Writer (`writer.py`) - Step 3.5
-- ⬜ Main (`main.py`) - Step 3.6
+- ⬜ LLM Client (`llm_client.py`) - Step 4.1
+- ⬜ AI Deduplication (enhancement) - Step 4.2
+- ⬜ AI Tagging (enhancement) - Step 4.3
+- ⬜ Fix Merging Logic - Step 4.4
+- ⬜ Rule Extraction - Step 4.5
 
 **Known Limitations (v1):**
-- Exact signature matching only (no semantic matching)
+- Exact signature matching only (no semantic matching - coming in Step 4)
 - First tag used as category (no explicit category field)
 - Naive datetimes assumed UTC
 - Single example per rule (no aggregation)
 - File path used as project name (no extraction)
+- Rule-based tagging only (no AI tagging - coming in Step 4)
+
+**Security Features (v1):**
+- ✅ Atomic writes (temp file + rename)
+- ✅ Path validation (rejects directory traversal)
+- ✅ Markdown injection prevention (tag/header escaping)
+- ✅ Error isolation (per-project failures don't stop others)
+- ✅ Comprehensive logging (DEBUG, INFO, WARNING, ERROR)
 
 ---
 

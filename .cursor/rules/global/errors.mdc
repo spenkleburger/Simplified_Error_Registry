@@ -16,7 +16,7 @@ alwaysApply: false
 - Document all attempts in `.errors_fixes/errors_and_fixes.md`
 - Advise appropriate test commands after code changes
 
----
+---888
 
 ## Test Generation Requirements
 

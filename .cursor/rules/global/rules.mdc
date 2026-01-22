@@ -53,7 +53,7 @@ Do not introduce new technical debt. Refactor as you go.
   - **Unit tests**: Individual functions/methods (isolated, mocked dependencies). Located in `tests/test_<module_name>.py`
   - **Integration tests**: Workflows, service interactions, database operations, API endpoints. Use `@pytest.mark.integration`. Located in `tests/integration/test_<feature>.py` or `tests/test_<feature>_integration.py`
 - **After creating tests**: Remind user to run `task test:backend`, `task test:frontend`, and/or `task test:integration` (as applicable).
-- **No autonomous testing:** Do NOT run tests autonomously until required to do so by user or other error-specific rule.
+- **CRITICAL - No autonomous testing:** NEVER run tests autonomously. Always ask the user to run tests. This ensures the error registry workflow (errors.mdc) is always followed: user runs tests → provides error output → agent looks up fixes in .errors_fixes/ files → documents results. The ONLY exception is if the user explicitly asks you to run tests (e.g., "run the tests" or "execute pytest"). 
 
 ## Post-Change Workflow Reminders
 

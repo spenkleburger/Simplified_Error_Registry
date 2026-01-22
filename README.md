@@ -67,15 +67,31 @@ These rules enable the agent to:
 4. **Agent applies fix** → Documents in `errors_and_fixes.md`
 5. **Daily at 2 AM:** Consolidation app processes all session logs → Updates consolidated files
 
-### 4. Consolidation App (Coming Soon)
+### 4. Consolidation App
 
-The consolidation app will:
-- Discover all projects with `.errors_fixes/errors_and_fixes.md`
-- Parse session logs
-- Deduplicate errors (exact match in Phase 3, AI semantic in Phase 4)
-- Generate tags (rule-based in Phase 3, AI in Phase 4)
-- Write consolidated `fix_repo.md` and `coding_tips.md`
-- Clear `errors_and_fixes.md` (keep file)
+The consolidation app is now available! Run it manually or schedule it to run daily:
+
+```bash
+# Run consolidation for all projects under a root directory
+python -m src.consolidation_app.main --root /path/to/projects
+
+# Dry-run mode (preview changes without writing)
+python -m src.consolidation_app.main --root /path/to/projects --dry-run
+
+# Include extra projects outside the scan root
+python -m src.consolidation_app.main --root /path/to/projects --extra /other/project1 /other/project2
+```
+
+**Features:**
+- Discovers all projects with `.errors_fixes/errors_and_fixes.md`
+- Parses session logs and existing consolidated files
+- Deduplicates errors (exact match - AI semantic coming in Step 4)
+- Generates tags (rule-based - AI tagging coming in Step 4)
+- Writes consolidated `fix_repo.md` and `coding_tips.md`
+- Clears `errors_and_fixes.md` (keeps file with header)
+- Atomic writes (prevents partial file corruption)
+- Path validation (prevents directory traversal attacks)
+- Error isolation (one project failure doesn't stop others)
 
 ---
 
@@ -83,7 +99,8 @@ The consolidation app will:
 
 - **`docs/SER_PLAN.md`** - Complete project plan, architecture, and design decisions
 - **`docs/SER_IMPLEMENTATION_PLAN.md`** - Detailed implementation plan with 6 steps and 28 phases
-- **`docs/API_REFERENCE.md`** - API reference for consolidation app modules (Step 1 complete)
+- **`docs/API_REFERENCE.md`** - API reference for consolidation app modules (Step 3 complete)
+- **`docs/CONSOLIDATION_APP_USAGE.md`** - Usage guide for the consolidation app
 - **`docs/SIMPLIFIED_ERROR_REGISTRY_V2.md`** - Complete system specification (SQT-refined)
 - **`docs/PROJECT_STATUS.md`** - Current implementation status and progress tracking
 
@@ -91,8 +108,8 @@ The consolidation app will:
 
 ## Project Status
 
-**Current Step:** Step 2 of 6 (In Progress) → Agent Integration  
-**Progress:** 18% (5/28 phases)  
+**Current Step:** Step 3 of 6 (Complete) → Consolidation App - Core  
+**Progress:** 39% (11/28 phases)  
 **Health:** 🟢 On Track
 
 **Step 1 Completed (2026-01-21):**
@@ -107,6 +124,15 @@ The consolidation app will:
 - ✅ Phase 2.3: Test output capture verified and improved
 - ✅ Phase 2.4: test-and-fix.mdc command created
 - ⬜ Phase 2.5: End-to-end agent workflow testing
+
+**Step 3 Completed (2026-01-21):**
+- ✅ Phase 3.1: Discovery module (with path validation)
+- ✅ Phase 3.2: Parser integration
+- ✅ Phase 3.3: Basic deduplication (exact match)
+- ✅ Phase 3.4: Basic tagging (rule-based)
+- ✅ Phase 3.5: Writer module (with atomic writes)
+- ✅ Phase 3.6: Main consolidation workflow (CLI, error handling, dry-run)
+- ✅ Security improvements: Atomic writes, path validation
 
 See `docs/PROJECT_STATUS.md` for detailed progress tracking.
 
@@ -129,13 +155,13 @@ The project is organized into 6 major steps:
    - Create optional test-and-fix command
    - End-to-end agent workflow testing
 
-3. **Consolidation App - Core** (6 phases)
-   - Discovery module
-   - Parser integration
-   - Basic deduplication (exact match)
-   - Basic tagging (rule-based)
-   - Writer module
-   - Main consolidation workflow
+3. **Consolidation App - Core** (6 phases) ✅ Complete 2026-01-21
+   - Discovery module ✅
+   - Parser integration ✅
+   - Basic deduplication (exact match) ✅
+   - Basic tagging (rule-based) ✅
+   - Writer module ✅ (with atomic writes)
+   - Main consolidation workflow ✅ (CLI, error handling, dry-run)
 
 4. **Consolidation App - AI Integration** (5 phases)
    - LLM client integration
@@ -201,4 +227,4 @@ This project is part of a larger effort to simplify developer tooling. It replac
 ---
 
 **Last Updated:** 2026-01-21  
-**Status:** Design Phase - Implementation in progress (Step 2)
+**Status:** Implementation in progress (Step 3 complete, Step 4 next)

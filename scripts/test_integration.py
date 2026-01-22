@@ -28,6 +28,7 @@
 # sections need customization.
 # ============================================================================
 
+import argparse
 import os
 import subprocess  # nosec B404 - only invoked with trusted developer tools
 import sys
@@ -366,55 +367,71 @@ def run_integration_tests():
 
 def main():
     """Main integration test runner."""
+    parser = argparse.ArgumentParser(
+        description="Run integration tests (auto-runs when API schemas change, or use --force)"
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Run all integration tests regardless of API schema changes",
+    )
+    args = parser.parse_args()
+
     # Capture all output to buffer and print to console
     with OutputCapture() as captured_output:
         print("=" * 70)
         print("🔗 Integration Test Runner")
         print("=" * 70)
-        print("Detecting API schema changes since last commit...\n")
 
-        # Get changed files
-        changed_files = get_changed_files()
-
-        if not changed_files:
-            print("✅ No changed files detected since last commit.")
-            print("   Run 'task test:integration' to run all integration tests")
-            return 0
-
-        # Filter to API schema files only
-        api_files = filter_api_schema_files(changed_files)
-
-        if not api_files:
-            print("✅ No API schema files changed - skipping integration tests")
-            print("   Integration tests run automatically when API schemas change")
-            print(
-                "   Run 'task test:integration' manually to run all integration tests"
-            )
-            return 0
-
-        # PROJECT-SPECIFIC: Remove this block when copying to template
-        # This provides special messaging for verification test runs
-        has_verification_test = any(VERIFICATION_TEST_FILE in f for f in api_files)
-
-        print(f"Found {len(api_files)} changed file(s):")
-        for f in api_files[:10]:  # Show first 10
-            print(f"  - {f}")
-        if len(api_files) > 10:
-            print(f"  ... and {len(api_files) - 10} more")
-
-        # PROJECT-SPECIFIC: Remove this conditional when copying to template
-        if has_verification_test:
-            print("\n🧪 VERIFICATION TEST DETECTED - Running Integration Tests")
-            print("Running integration tests for output capture verification.")
+        # If --force is provided, skip API schema check and run all tests
+        if args.force:
+            print("🚀 Force mode: Running all integration tests\n")
+            all_passed = run_integration_tests()
         else:
-            print("\n⚠️  API SCHEMAS CHANGED - Running Integration Tests")
-            print("API contract changes detected. Running integration tests to verify")
-            print(
-                "backend-frontend compatibility. Agent should create/update tests as needed."
-            )
+            print("Detecting API schema changes since last commit...\n")
 
-        # Run integration tests
-        all_passed = run_integration_tests()
+            # Get changed files
+            changed_files = get_changed_files()
+
+            if not changed_files:
+                print("✅ No changed files detected since last commit.")
+                print("   Use 'task test:integration --force' to run all integration tests")
+                return 0
+
+            # Filter to API schema files only
+            api_files = filter_api_schema_files(changed_files)
+
+            if not api_files:
+                print("✅ No API schema files changed - skipping integration tests")
+                print("   Integration tests run automatically when API schemas change")
+                print(
+                    "   Use 'task test:integration --force' to run all integration tests"
+                )
+                return 0
+
+            # PROJECT-SPECIFIC: Remove this block when copying to template
+            # This provides special messaging for verification test runs
+            has_verification_test = any(VERIFICATION_TEST_FILE in f for f in api_files)
+
+            print(f"Found {len(api_files)} changed file(s):")
+            for f in api_files[:10]:  # Show first 10
+                print(f"  - {f}")
+            if len(api_files) > 10:
+                print(f"  ... and {len(api_files) - 10} more")
+
+            # PROJECT-SPECIFIC: Remove this conditional when copying to template
+            if has_verification_test:
+                print("\n🧪 VERIFICATION TEST DETECTED - Running Integration Tests")
+                print("Running integration tests for output capture verification.")
+            else:
+                print("\n⚠️  API SCHEMAS CHANGED - Running Integration Tests")
+                print("API contract changes detected. Running integration tests to verify")
+                print(
+                    "backend-frontend compatibility. Agent should create/update tests as needed."
+                )
+
+            # Run integration tests
+            all_passed = run_integration_tests()
 
         # Summary
         print("\n" + "=" * 70)

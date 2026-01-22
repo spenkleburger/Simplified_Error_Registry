@@ -244,3 +244,188 @@ def _split_header(header: str) -> Tuple[str, str]:
         return remainder.strip(), entry_type.strip()
 
     return text, text
+
+
+# --- fix_repo.md / coding_tips.md parsers (reverse of generator output) ---
+
+_FIX_REPO_SECTION = re.compile(r"(?m)^##\s+(.+)$")
+_FIX_REPO_FIX_BLOCK = re.compile(
+    r"###\s+Fix\s+\d+:\s+(.+?)\s+\(Success\s+Count:\s+(\d+)\)"
+)
+
+
+def _unescape_markdown_header(text: str) -> str:
+    """Reverse _escape_markdown_header: remove backslash escapes."""
+
+    replacements = [
+        (r"\#", "#"),
+        (r"\*", "*"),
+        (r"\[", "["),
+        (r"\]", "]"),
+        (r"\(", "("),
+        (r"\)", ")"),
+        (r"\<", "<"),
+        (r"\>", ">"),
+        (r"\`", "`"),
+        (r"\_", "_"),
+        (r"\~", "~"),
+    ]
+    out = text
+    for escaped, char in replacements:
+        out = out.replace(escaped, char)
+    return out
+
+
+def parse_fix_repo(file_path: Path) -> List[ErrorEntry]:
+    """
+    Parse fix_repo.md (generator output) back into ErrorEntry list.
+
+    Skips header (before first ##). Each ## section is one signature;
+    ### Fix N blocks are individual entries. Returns [] if file missing or empty.
+
+    Args:
+        file_path: Path to fix_repo.md.
+
+    Returns:
+        List of ErrorEntry (all is_process_issue=False).
+    """
+
+    if not file_path.exists():
+        logger.debug("Missing fix_repo: %s", file_path)
+        return []
+
+    text = file_path.read_text(encoding="utf-8")
+    if not text.strip():
+        return []
+
+    sections = list(_FIX_REPO_SECTION.finditer(text))
+    # First ## is sometimes after ---; skip header
+    entries: List[ErrorEntry] = []
+    for i, sig_match in enumerate(sections):
+        signature_raw = sig_match.group(1).strip()
+        signature = _unescape_markdown_header(signature_raw)
+        start = sig_match.end()
+        end = sections[i + 1].start() if i + 1 < len(sections) else len(text)
+        block = text[start:end].strip()
+        if not block:
+            continue
+
+        meta = extract_metadata(block)
+        raw_tags = meta.get("tags", "").strip()
+        section_tags = [] if raw_tags == "None" else parse_tags(raw_tags)
+        fix_matches = list(_FIX_REPO_FIX_BLOCK.finditer(block))
+        for j, fm in enumerate(fix_matches):
+            error_type = fm.group(1).strip()
+            success_count = int(fm.group(2))
+            fix_start = fm.end()
+            fix_end = (
+                fix_matches[j + 1].start() if j + 1 < len(fix_matches) else len(block)
+            )
+            fix_block = block[fix_start:fix_end].strip()
+            fix_meta = extract_metadata(fix_block)
+            fix_code = extract_code_block(fix_block, "Code")
+            explanation = (
+                fix_meta.get("why this works") or fix_meta.get("why_this_works") or ""
+            )
+            result = fix_meta.get("result", "")
+            file_path_str = (
+                fix_meta.get("projects") or fix_meta.get("file") or ""
+            ).strip()
+            ts_str = (
+                fix_meta.get("last updated")
+                or fix_meta.get("last_updated")
+                or meta.get("last updated")
+                or meta.get("last_updated")
+                or ""
+            )
+            try:
+                ts = parse_timestamp(ts_str) if ts_str else DEFAULT_TIMESTAMP
+            except Exception:
+                ts = DEFAULT_TIMESTAMP
+            entry = ErrorEntry(
+                error_signature=signature,
+                error_type=error_type,
+                file=file_path_str,
+                line=0,
+                fix_code=fix_code,
+                explanation=explanation,
+                result=result,
+                success_count=success_count,
+                tags=section_tags.copy(),
+                timestamp=ts,
+                is_process_issue=False,
+            )
+            entries.append(entry)
+
+    return entries
+
+
+_CODING_TIPS_SECTION = re.compile(r"(?m)^##\s+(.+)$")
+_CODING_TIPS_RULE = re.compile(r"(?m)^###\s+Rule:\s+(.+)$")
+
+
+def parse_coding_tips(file_path: Path) -> List[ErrorEntry]:
+    """
+    Parse coding_tips.md (generator output) back into ErrorEntry list.
+
+    Skips header. Each ## is category; ### Rule: blocks are process issues.
+    Returns [] if file missing or empty.
+
+    Args:
+        file_path: Path to coding_tips.md.
+
+    Returns:
+        List of ErrorEntry (all is_process_issue=True).
+    """
+
+    if not file_path.exists():
+        logger.debug("Missing coding_tips: %s", file_path)
+        return []
+
+    text = file_path.read_text(encoding="utf-8")
+    if not text.strip():
+        return []
+
+    sections = list(_CODING_TIPS_SECTION.finditer(text))
+    entries: List[ErrorEntry] = []
+    for i, cat_match in enumerate(sections):
+        category = _unescape_markdown_header(cat_match.group(1).strip())
+        start = cat_match.end()
+        end = sections[i + 1].start() if i + 1 < len(sections) else len(text)
+        block = text[start:end].strip()
+        if not block:
+            continue
+
+        rule_matches = list(_CODING_TIPS_RULE.finditer(block))
+        for k, rm in enumerate(rule_matches):
+            rule_title = _unescape_markdown_header(rm.group(1).strip())
+            rule_start = rm.end()
+            rule_end = (
+                rule_matches[k + 1].start() if k + 1 < len(rule_matches) else len(block)
+            )
+            rule_block = block[rule_start:rule_end].strip()
+            meta = extract_metadata(rule_block)
+            why = meta.get("why") or meta.get("explanation") or ""
+            result = meta.get("result", "")
+            related = meta.get("related errors") or meta.get("related_errors") or ""
+            sc = 0
+            if "success count:" in related.lower():
+                m = re.search(r"success\s+count:\s*(\d+)", related, re.I)
+                if m:
+                    sc = int(m.group(1))
+            entry = ErrorEntry(
+                error_signature=rule_title,
+                error_type=meta.get("issue_type") or "agent-process",
+                file="",
+                line=0,
+                fix_code=why,
+                explanation=why,
+                result=result,
+                success_count=sc,
+                tags=[category] if category else [],
+                timestamp=DEFAULT_TIMESTAMP,
+                is_process_issue=True,
+            )
+            entries.append(entry)
+
+    return entries
