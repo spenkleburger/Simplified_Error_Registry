@@ -5,7 +5,13 @@
 
 """Temporary test file to verify error output capture works correctly."""
 
+import pytest
 
+# Phase 2.3 verification complete - these tests are skipped to avoid false failures
+# They can be removed once verification is confirmed complete
+
+
+@pytest.mark.skip(reason="Phase 2.3 verification test - intentionally fails to verify output capture")
 def test_intentional_failure_for_verification():
     """
     This test intentionally fails to verify that test output capture
@@ -21,6 +27,7 @@ def test_intentional_failure_for_verification():
     assert 1 == 2, "Intentional failure to test output capture"
 
 
+@pytest.mark.skip(reason="Phase 2.3 verification test - intentionally fails to verify output capture")
 def test_another_failure_for_verification():
     """
     Second intentional failure to test multiple failures in summary.

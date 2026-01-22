@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from types import SimpleNamespace
 
 from scripts import git_push
@@ -17,7 +18,7 @@ def test_git_push_cancel_on_empty_commit(monkeypatch):
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(git_push, "run_command", fake_run_command)
-    monkeypatch.setattr(git_push, "input", lambda prompt="": "")
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "")
 
     exit_code = git_push.main()
 
@@ -35,7 +36,7 @@ def test_git_push_happy_path(monkeypatch):
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(git_push, "run_command", fake_run_command)
-    monkeypatch.setattr(git_push, "input", lambda prompt="": "feat: add tests")
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "feat: add tests")
 
     exit_code = git_push.main()
 

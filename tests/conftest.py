@@ -5,6 +5,7 @@ This file is automatically discovered by pytest and provides fixtures
 that can be used across all test files.
 """
 
+import logging
 import sys
 import tempfile
 from pathlib import Path
@@ -21,6 +22,12 @@ def temp_dir():
     """Create a temporary directory for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+        # Cleanup: Close all file handlers before directory deletion (Windows fix)
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+                root_logger.removeHandler(handler)
 
 
 @pytest.fixture
@@ -29,6 +36,23 @@ def temp_log_dir(temp_dir):
     log_dir = temp_dir / "logs"
     log_dir.mkdir()
     return log_dir
+
+
+@pytest.fixture(autouse=True)
+def cleanup_logging_handlers():
+    """
+    Automatically close all file handlers after each test to prevent Windows file lock issues.
+    
+    This fixture runs after each test and ensures all file handlers are closed,
+    which is necessary on Windows to allow temporary directories to be deleted.
+    """
+    yield
+    # Teardown: Close all file handlers
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, logging.FileHandler):
+            handler.close()
+            root_logger.removeHandler(handler)
 
 
 @pytest.fixture

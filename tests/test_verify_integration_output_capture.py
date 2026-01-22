@@ -7,8 +7,12 @@
 
 import pytest
 
+# Phase 2.3 verification complete - these tests are skipped to avoid false failures
+# They can be removed once verification is confirmed complete
+
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Phase 2.3 verification test - intentionally fails to verify output capture")
 def test_intentional_integration_failure_for_verification():
     """
     This test intentionally fails to verify that integration test output capture
@@ -25,6 +29,7 @@ def test_intentional_integration_failure_for_verification():
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Phase 2.3 verification test - intentionally fails to verify output capture")
 def test_another_integration_failure_for_verification():
     """
     Second intentional failure to test multiple failures in summary.
