@@ -39,7 +39,9 @@ class ErrorEntry:
 def parse_errors_and_fixes(file_path: Path) -> List[ErrorEntry]:
     """Return parsed entries from a session log."""
 
-    if not file_path.exists():
+    # Optimize: Use is_file() which checks existence and type in one call
+    # This reduces file system operations on Docker mounts
+    if not file_path.is_file():
         logger.debug("Missing errors_and_fixes log: %s", file_path)
         return []
 
@@ -290,7 +292,8 @@ def parse_fix_repo(file_path: Path) -> List[ErrorEntry]:
         List of ErrorEntry (all is_process_issue=False).
     """
 
-    if not file_path.exists():
+    # Optimize: Use is_file() which checks existence and type in one call
+    if not file_path.is_file():
         logger.debug("Missing fix_repo: %s", file_path)
         return []
 
@@ -378,7 +381,8 @@ def parse_coding_tips(file_path: Path) -> List[ErrorEntry]:
         List of ErrorEntry (all is_process_issue=True).
     """
 
-    if not file_path.exists():
+    # Optimize: Use is_file() which checks existence and type in one call
+    if not file_path.is_file():
         logger.debug("Missing coding_tips: %s", file_path)
         return []
 

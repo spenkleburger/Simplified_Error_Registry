@@ -33,7 +33,7 @@ requests>=2.31.0      # Synchronous HTTP library (most common)
 # Data Validation & Serialization
 # ============================================================================
 # pydantic>=2.0.0      # Data validation using Python type annotations
-# PyYAML>=6.0          # YAML parser and emitter
+PyYAML>=6.0            # YAML parser and emitter (consolidation app config)
 
 # ============================================================================
 # Database

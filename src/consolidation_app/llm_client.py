@@ -27,7 +27,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Default configuration
-DEFAULT_OLLAMA_URL = "http://localhost:11434"
+DEFAULT_OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 DEFAULT_OLLAMA_MODEL = "qwen2.5-coder:14b"
 DEFAULT_OPENAI_MODEL = "gpt-4"
 DEFAULT_ANTHROPIC_MODEL = "claude-3-opus-20240229"
@@ -486,7 +486,9 @@ def call_llm(
 
     try:
         if provider == "ollama":
-            response = call_ollama(prompt, model=selected_model)
+            # Use OLLAMA_BASE_URL from environment if set, otherwise use default
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            response = call_ollama(prompt, model=selected_model, base_url=base_url)
         elif provider == "openai":
             response = call_openai(prompt, model=selected_model)
         elif provider == "anthropic":

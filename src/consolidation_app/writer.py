@@ -161,7 +161,8 @@ def clear_errors_and_fixes(project_path: Path) -> None:
     errors_file = errors_fixes_dir / "errors_and_fixes.md"
 
     try:
-        if not errors_file.exists():
+        # Optimize: Use is_file() which checks both existence and type in one call
+        if not errors_file.is_file():
             logger.warning(
                 "errors_and_fixes.md does not exist: %s (skipping clear)",
                 errors_file,

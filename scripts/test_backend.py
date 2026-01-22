@@ -333,10 +333,17 @@ def map_files_to_tests(changed_files):
 
     for file in changed_files:
         # Convert src/module.py -> tests/test_module.py
+        # Also src/package/module.py -> tests/test_package_module.py (flatten with _)
         if file.startswith("src/"):
-            test_file = file.replace("src/", "tests/test_")
-            if (project_root / test_file).exists() and test_file not in test_files:
-                test_files.append(test_file)
+            rest = file[4:]  # drop "src/"
+            candidates = [
+                f"tests/test_{rest}",  # tests/test_foo.py or tests/test_pkg/foo.py
+                f"tests/test_{rest.replace('/', '_')}",  # tests/test_pkg_foo.py
+            ]
+            for test_file in candidates:
+                if (project_root / test_file).exists() and test_file not in test_files:
+                    test_files.append(test_file)
+                    break
         # If it's already a test file, include it
         elif file.startswith("tests/"):
             if file not in test_files:

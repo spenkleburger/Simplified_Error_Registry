@@ -56,8 +56,13 @@ The system includes Cursor rules that are automatically available in all project
 
 These rules enable the agent to:
 - Check `.errors_fixes/` files for fixes before attempting solutions
-- Document errors and fixes in `errors_and_fixes.md`
+- Document errors and fixes in `errors_and_fixes.md` (using exact format - see `errors.mdc` "Entry Format" section)
 - Apply process rules proactively to prevent common mistakes
+
+**Format Documentation:**
+- **Agent Rule**: `.cursor/rules/global/errors.mdc` contains complete format specifications with required fields
+- **Template File**: `docs/templates/errors_fixes_template/errors_and_fixes.md` provides example entries
+- **Parser Requirements**: The consolidation app parser expects exact format - see `errors.mdc` for details
 
 ### 3. Development Workflow
 

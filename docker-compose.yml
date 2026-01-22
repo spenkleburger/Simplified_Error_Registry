@@ -1,0 +1,108 @@
+# ============================================================================
+# docker-compose.yml - SER Consolidation App
+# ============================================================================
+# Orchestrates the consolidation app container with volume mounts and
+# environment configuration for connecting to host's Ollama instance.
+#
+# Required variables:
+#   PROJECTS_ROOT - Root directory for projects (use host path; mapped to /projects)
+#
+# Optional (see .env.example):
+#   LLM_PROVIDER, LLM_MODEL, LLM_MODEL_*, OLLAMA_BASE_URL, CONSOLIDATION_SCHEDULE,
+#   SIMILARITY_THRESHOLD, LOG_LEVEL, CONFIG_PATH, LLM_API_KEY, etc.
+#
+# Use env_file to load from .env (create from .env.example).
+# ============================================================================
+
+version: '3.8'
+
+services:
+  consolidation-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ser-consolidation-app
+    env_file:
+      - .env
+    volumes:
+      # Mount projects directory (read-write access for consolidation)
+      # Update this path to point to your projects root directory
+      - ${PROJECTS_ROOT:-./projects}:/projects:rw
+    environment:
+      # Projects root (inside container)
+      - PROJECTS_ROOT=/projects
+      
+      # LLM Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - LLM_MODEL=${LLM_MODEL:-qwen3:8b}
+      
+      # Per-task model overrides (optional)
+      - LLM_MODEL_DEDUPLICATION=${LLM_MODEL_DEDUPLICATION:-}
+      - LLM_MODEL_TAGGING=${LLM_MODEL_TAGGING:-}
+      - LLM_MODEL_RULE_EXTRACTION=${LLM_MODEL_RULE_EXTRACTION:-}
+      
+      # Optional: config file path, generic API key for cloud providers
+      - CONFIG_PATH=${CONFIG_PATH:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      
+      # Ollama connection to host machine
+      # For Windows/Mac: host.docker.internal works automatically
+      # For Linux: May need to use host IP or configure extra_hosts
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      
+      # Cloud API keys (optional, for OpenAI/Anthropic)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      
+      # Consolidation schedule (for future scheduler integration)
+      - CONSOLIDATION_SCHEDULE=${CONSOLIDATION_SCHEDULE:-0 2 * * *}
+      
+      # Similarity threshold for AI deduplication
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.85}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    # Add extra_hosts for Linux compatibility (host.docker.internal)
+    # For Windows/Mac, this is usually not needed but doesn't hurt
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    # Restart policy: restart unless stopped
+    restart: unless-stopped
+    
+    # Command override: use --run-once for one-time execution
+    # (Scheduler integration will be added in Phase 5.3)
+    command: ["python", "-m", "src.consolidation_app.main", "--root", "/projects"]
+    
+    # Health check (optional - can be added later)
+    # healthcheck:
+    #   test: ["CMD", "python", "-c", "from src.consolidation_app.llm_client import call_ollama; call_ollama('test')"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+
+# ============================================================================
+# Usage Notes:
+# ============================================================================
+# 1. Ensure Ollama is running on the host machine (not in Docker)
+#    - Default endpoint: http://localhost:11434
+#    - Container connects via host.docker.internal:11434
+#
+# 2. Create .env from .env.example (optional). env_file loads .env if present.
+#
+# 3. Set PROJECTS_ROOT environment variable or update volume mount:
+#    - Example: export PROJECTS_ROOT=/path/to/projects
+#    - Or edit the volume mount path directly in this file
+#
+# 4. For Linux hosts, if host.docker.internal doesn't work:
+#    - Option 1: Use host IP address: OLLAMA_BASE_URL=http://<host-ip>:11434
+#    - Option 2: Use host network mode (not recommended for isolation)
+#
+# 5. Run one-time consolidation:
+#    docker-compose run --rm consolidation-app python -m src.consolidation_app.main --root /projects --dry-run
+#
+# 6. Run with custom environment:
+#    docker-compose run --rm -e LLM_MODEL=qwen2.5-coder:7b consolidation-app
+# ============================================================================

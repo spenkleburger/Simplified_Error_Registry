@@ -61,14 +61,17 @@ def discover_projects(
     Discover all projects with .errors_fixes/errors_and_fixes.md files.
 
     This function searches for projects in two ways:
-    1. Recursively searches from root_path for .errors_fixes/errors_and_fixes.md files
+    1. Checks immediate subdirectories of root_path (non-recursive)
+       - Each subdirectory is expected to be a project
+       - Looks for .errors_fixes/errors_and_fixes.md at the project root level
     2. Processes extra_projects list (paths outside the scan root)
 
     For extra_projects, if errors_and_fixes.md is missing, the function will
     automatically bootstrap the project (create the .errors_fixes/ folder structure).
 
     Args:
-        root_path: Root directory to search for projects
+        root_path: Root directory containing project subdirectories.
+                  Each immediate subdirectory is checked for .errors_fixes/errors_and_fixes.md
         extra_projects: Optional list of project paths (strings) to include.
                        These paths are resolved and checked. If errors_and_fixes.md
                        is missing, bootstrap is called automatically.
@@ -83,9 +86,9 @@ def discover_projects(
 
     Example:
         >>> from pathlib import Path
-        >>> projects = discover_projects(Path("/home/user/projects"))
+        >>> projects = discover_projects(Path("/projects"))
         >>> print(projects)
-        [Path('/home/user/projects/proj1'), Path('/home/user/projects/proj2')]
+        [Path('/projects/proj1'), Path('/projects/proj2')]
     """
     # Validate root_path
     if not root_path.exists():
@@ -102,25 +105,52 @@ def discover_projects(
 
     projects: list[Path] = []
 
-    # Step 1: Discover projects via rglob
+    target_file = Path(".errors_fixes") / "errors_and_fixes.md"
+
+    # Step 0: Check if root_path itself is a project (for testing/single-project scenarios)
+    # In production, C:\Projects contains project folders, but we support root being a project too
+    root_errors_fixes_path = root_path / target_file
+    if root_errors_fixes_path.is_file():
+        projects.append(root_path.resolve())
+        logger.debug(f"Found project at root: {root_path}")
+
+    # Step 1: Discover projects by checking immediate subdirectories only
+    # Each subdirectory under root_path is expected to be a project
+    # with .errors_fixes/errors_and_fixes.md at the project root level
     try:
-        logger.debug(f"Searching for .errors_fixes/errors_and_fixes.md in {root_path}")
-        found_files = list(root_path.rglob(".errors_fixes/errors_and_fixes.md"))
+        logger.debug(f"Checking immediate subdirectories of {root_path} for projects")
 
-        for file_path in found_files:
-            # Get project root: file_path is .errors_fixes/errors_and_fixes.md
-            # So project root is file_path.parent.parent
-            project_root = file_path.parent.parent.resolve()
-            projects.append(project_root)
-            logger.debug(f"Found project via rglob: {project_root}")
+        checked_count = 0
 
-        logger.info(f"Found {len(found_files)} projects via rglob")
+        # Iterate over immediate subdirectories only (not recursive)
+        for item in root_path.iterdir():
+            if not item.is_dir():
+                continue
+
+            checked_count += 1
+            # Optimize: Avoid resolve() until we know we have a project
+            # This reduces slow Docker mount calls when checking many directories
+            # Only resolve when we actually find a project with .errors_fixes/
+
+            # Optimize: Use is_file() which checks both existence and type in one call
+            # This reduces file system operations on Docker mounts (from 2 calls to 1)
+            errors_fixes_path = item / target_file
+            if errors_fixes_path.is_file():
+                # Only resolve when we actually have a project (reduces resolve() calls)
+                projects.append(item.resolve())
+                logger.debug(f"Found project: {item}")
+            else:
+                logger.debug(f"Skipping {item.name}: missing {target_file}")
+
+        logger.info(
+            f"Checked root + {checked_count} subdirectories, found {len(projects)} project(s)"
+        )
     except PermissionError as e:
-        logger.warning(f"Permission denied while searching {root_path}: {e}")
-        # Continue with extra_projects even if rglob fails
+        logger.warning(f"Permission denied while scanning {root_path}: {e}")
+        # Continue with extra_projects even if scan fails
     except Exception as e:
-        logger.error(f"Unexpected error during rglob discovery: {e}", exc_info=True)
-        # Continue with extra_projects even if rglob fails
+        logger.error(f"Unexpected error during project discovery: {e}", exc_info=True)
+        # Continue with extra_projects even if scan fails
 
     # Step 2: Process extra_projects list
     if extra_projects:
@@ -151,9 +181,10 @@ def discover_projects(
                     continue
 
                 # Check if errors_and_fixes.md exists
+                # Optimize: Use is_file() which checks both existence and type in one call
                 errors_fixes_file = extra_path / ".errors_fixes" / "errors_and_fixes.md"
 
-                if not errors_fixes_file.exists():
+                if not errors_fixes_file.is_file():
                     logger.info(
                         f"errors_and_fixes.md not found in {extra_path}, bootstrapping..."
                     )

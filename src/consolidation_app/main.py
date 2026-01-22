@@ -91,8 +91,10 @@ def consolidate_all_projects(
     logger.info("Consolidating %d project(s) (dry_run=%s)", len(projects), dry_run)
 
     for project in projects:
+        # Optimize: Use is_file() instead of exists() - checks both existence and type in one call
+        # Discovery already verified file exists, but check again in case it was deleted
         err_file = project / ".errors_fixes" / "errors_and_fixes.md"
-        if not err_file.exists():
+        if not err_file.is_file():
             logger.warning(
                 "Missing %s for project %s (skipping)", _ERRORS_FIXES, project
             )
@@ -129,9 +131,11 @@ def _consolidate_one_project(project: Path, *, dry_run: bool = False) -> None:
     new_errors = [e for e in new_entries if not e.is_process_issue]
     new_process = [e for e in new_entries if e.is_process_issue]
 
-    existing_errors = parse_fix_repo(fix_repo_file) if fix_repo_file.exists() else []
+    # Optimize: Use is_file() instead of exists() to reduce file system calls
+    # is_file() checks both existence and type in one call (faster on Docker mounts)
+    existing_errors = parse_fix_repo(fix_repo_file) if fix_repo_file.is_file() else []
     existing_process = (
-        parse_coding_tips(coding_tips_file) if coding_tips_file.exists() else []
+        parse_coding_tips(coding_tips_file) if coding_tips_file.is_file() else []
     )
 
     consolidated_errors = deduplicate_errors_exact(new_errors, existing_errors)

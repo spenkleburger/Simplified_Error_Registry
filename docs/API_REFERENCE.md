@@ -77,6 +77,13 @@ class ErrorEntry:
 - Handles missing fields with defaults (line=0, file="", success_count=0, etc.)
 - Parses both `### Error:` and `### Agent Process Issue:` headers
 
+**Format Requirements:**
+- Entries must follow the exact format specified in `.cursor/rules/global/errors.mdc` (see "Entry Format" section)
+- See `docs/templates/errors_fixes_template/errors_and_fixes.md` for complete template with examples
+- Parser uses regex: `^###\s+(Error|Agent Process Issue):\s*(.*)$` to find entries
+- Metadata extracted using: `\*\*(?P<key>[^:]+):\*\*\s*(?P<value>.*)`
+- Missing critical fields may cause entries to be skipped
+
 **Example:**
 ```python
 from pathlib import Path

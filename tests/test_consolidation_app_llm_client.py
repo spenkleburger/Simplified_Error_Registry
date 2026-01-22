@@ -252,7 +252,9 @@ class TestUnifiedLLMClient:
         result = llm_client.call_llm("Test", task="default")
 
         assert result == "Ollama response"
-        mock_call_ollama.assert_called_once_with("Test", model="qwen2.5-coder:14b")
+        mock_call_ollama.assert_called_once_with(
+            "Test", model="qwen2.5-coder:14b", base_url="http://localhost:11434"
+        )
 
     @patch("src.consolidation_app.llm_client.call_openai")
     @patch.dict(os.environ, {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "test-key"})
@@ -299,7 +301,9 @@ class TestUnifiedLLMClient:
         result = llm_client.call_llm("Test", task="deduplication")
 
         assert result == "Response"
-        mock_call_ollama.assert_called_once_with("Test", model="qwen2.5-coder:7b")
+        mock_call_ollama.assert_called_once_with(
+            "Test", model="qwen2.5-coder:7b", base_url="http://localhost:11434"
+        )
 
     @patch("src.consolidation_app.llm_client.call_ollama")
     @patch.dict(
@@ -317,7 +321,9 @@ class TestUnifiedLLMClient:
         result = llm_client.call_llm("Test", task="tagging", model="explicit-model")
 
         assert result == "Response"
-        mock_call_ollama.assert_called_once_with("Test", model="explicit-model")
+        mock_call_ollama.assert_called_once_with(
+            "Test", model="explicit-model", base_url="http://localhost:11434"
+        )
 
     @patch("src.consolidation_app.llm_client.call_ollama")
     @patch.dict(os.environ, {"LLM_PROVIDER": "ollama", "LLM_MODEL": "custom-default"})
@@ -328,7 +334,9 @@ class TestUnifiedLLMClient:
         result = llm_client.call_llm("Test", task="unknown_task")
 
         assert result == "Response"
-        mock_call_ollama.assert_called_once_with("Test", model="custom-default")
+        mock_call_ollama.assert_called_once_with(
+            "Test", model="custom-default", base_url="http://localhost:11434"
+        )
 
     @patch("src.consolidation_app.llm_client.call_ollama")
     @patch.dict(
@@ -347,7 +355,9 @@ class TestUnifiedLLMClient:
 
         assert result == "Response"
         # Should use Ollama (task-specific) not OpenAI (default)
-        mock_call_ollama.assert_called_once_with("Test", model="qwen2.5-coder:7b")
+        mock_call_ollama.assert_called_once_with(
+            "Test", model="qwen2.5-coder:7b", base_url="http://localhost:11434"
+        )
 
     @patch("src.consolidation_app.llm_client.call_ollama")
     @patch("src.consolidation_app.llm_client.call_openai")
@@ -371,7 +381,9 @@ class TestUnifiedLLMClient:
         # Deduplication should use Ollama
         result = llm_client.call_llm("Test", task="deduplication")
         assert result == "Ollama response"
-        mock_call_ollama.assert_called_once_with("Test", model="qwen2.5-coder:7b")
+        mock_call_ollama.assert_called_once_with(
+            "Test", model="qwen2.5-coder:7b", base_url="http://localhost:11434"
+        )
 
         # Tagging should use OpenAI
         result = llm_client.call_llm("Test", task="tagging")
@@ -529,20 +541,28 @@ class TestEnvFileCompatibility:
         # Test default model
         result = llm_client.call_llm("Test", task="default")
         assert result == "Response"
-        mock_call_ollama.assert_called_with("Test", model="qwen2.5-coder:14b")
+        mock_call_ollama.assert_called_with(
+            "Test", model="qwen2.5-coder:14b", base_url="http://localhost:11434"
+        )
 
         # Test task-specific models
         result = llm_client.call_llm("Test", task="deduplication")
         assert result == "Response"
-        mock_call_ollama.assert_called_with("Test", model="qwen2.5-coder:7b")
+        mock_call_ollama.assert_called_with(
+            "Test", model="qwen2.5-coder:7b", base_url="http://localhost:11434"
+        )
 
         result = llm_client.call_llm("Test", task="tagging")
         assert result == "Response"
-        mock_call_ollama.assert_called_with("Test", model="qwen2.5-coder:7b")
+        mock_call_ollama.assert_called_with(
+            "Test", model="qwen2.5-coder:7b", base_url="http://localhost:11434"
+        )
 
         result = llm_client.call_llm("Test", task="rule_extraction")
         assert result == "Response"
-        mock_call_ollama.assert_called_with("Test", model="qwen2.5-coder:14b")
+        mock_call_ollama.assert_called_with(
+            "Test", model="qwen2.5-coder:14b", base_url="http://localhost:11434"
+        )
 
     @patch("src.consolidation_app.llm_client.load_dotenv")
     @patch("src.consolidation_app.llm_client.call_ollama")
@@ -582,7 +602,9 @@ class TestEnvFileCompatibility:
         # Deduplication should use Ollama (task-specific provider)
         result = llm_client.call_llm("Test", task="deduplication")
         assert result == "Ollama response"
-        mock_call_ollama.assert_called_with("Test", model="qwen2.5-coder:7b")
+        mock_call_ollama.assert_called_with(
+            "Test", model="qwen2.5-coder:7b", base_url="http://localhost:11434"
+        )
 
         # Tagging should use OpenAI (task-specific provider)
         result = llm_client.call_llm("Test", task="tagging")
@@ -754,7 +776,11 @@ class TestActualEnvFileIntegration:
         result = llm_client.call_llm("Test deduplication", task="deduplication")
         if dedup_provider == "ollama":
             assert result == "Ollama response"
-            mock_call_ollama.assert_called_with("Test deduplication", model=dedup_model)
+            mock_call_ollama.assert_called_with(
+                "Test deduplication",
+                model=dedup_model,
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            )
         elif dedup_provider == "openai":
             assert result == "OpenAI response"
             mock_call_openai.assert_called_with("Test deduplication", model=dedup_model)

@@ -46,6 +46,13 @@ All files use:
 - LF line endings
 - Markdown format (parseable by regex v1, future markdown parser)
 
+**CRITICAL**: Entries in `errors_and_fixes.md` must follow the exact format specified in `.cursor/rules/global/errors.mdc` (see "Entry Format" section). The consolidation app parser expects this specific structure.
+
+**Format Reference**: 
+- See `.cursor/rules/global/errors.mdc` for complete format specifications with required fields
+- See `errors_and_fixes.md` in this template folder for example entries
+- The parser uses regex patterns to extract entries, so exact format is required
+
 ## Quick Start
 
 1. Bootstrap this folder in your project using: `python scripts/bootstrap_errors_fixes.py /path/to/project`

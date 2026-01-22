@@ -8,32 +8,20 @@ from src.consolidation_app import discovery
 
 
 def test_rglob_discovery(tmp_path):
-    """Test discovering projects via rglob."""
-    # Create project structure
+    """Test discovering projects via immediate subdirectories (no recursion)."""
+    # Create project structure: each project is an immediate subdir of root
     project1 = tmp_path / "project1"
     project2 = tmp_path / "project2"
-    project3 = tmp_path / "nested" / "project3"
+    project3 = tmp_path / "project3"
 
-    # Create .errors_fixes directories and files
-    (project1 / ".errors_fixes").mkdir(parents=True)
-    (project1 / ".errors_fixes" / "errors_and_fixes.md").write_text(
-        "# Errors\n", encoding="utf-8"
-    )
+    for proj in (project1, project2, project3):
+        (proj / ".errors_fixes").mkdir(parents=True)
+        (proj / ".errors_fixes" / "errors_and_fixes.md").write_text(
+            "# Errors\n", encoding="utf-8"
+        )
 
-    (project2 / ".errors_fixes").mkdir(parents=True)
-    (project2 / ".errors_fixes" / "errors_and_fixes.md").write_text(
-        "# Errors\n", encoding="utf-8"
-    )
-
-    (project3 / ".errors_fixes").mkdir(parents=True)
-    (project3 / ".errors_fixes" / "errors_and_fixes.md").write_text(
-        "# Errors\n", encoding="utf-8"
-    )
-
-    # Discover projects
     projects = discovery.discover_projects(tmp_path)
 
-    # Should find all 3 projects
     assert len(projects) == 3
     assert project1.resolve() in projects
     assert project2.resolve() in projects
@@ -99,7 +87,7 @@ def test_deduplication(tmp_path):
         "# Errors\n", encoding="utf-8"
     )
 
-    # Discover with both rglob and extra_projects pointing to same project
+    # Discover with both immediate-subdir scan and extra_projects pointing to same project
     projects = discovery.discover_projects(tmp_path, extra_projects=[str(project1)])
 
     # Should only find project once
@@ -184,12 +172,12 @@ def test_extra_projects_none(tmp_path):
 
 
 def test_combined_rglob_and_extra_projects(tmp_path):
-    """Test combining rglob discovery with extra_projects."""
+    """Test combining immediate-subdir discovery with extra_projects."""
     # Create root_path with a project inside it
     root_path = tmp_path / "root"
     root_path.mkdir()
 
-    # Create project1 inside root_path (will be found via rglob)
+    # Create project1 inside root_path (will be found via immediate subdir scan)
     project1_in_root = root_path / "project1"
     (project1_in_root / ".errors_fixes").mkdir(parents=True)
     (project1_in_root / ".errors_fixes" / "errors_and_fixes.md").write_text(
@@ -220,22 +208,20 @@ def test_permission_error_handling(tmp_path, monkeypatch):
     root_path = tmp_path / "root"
     root_path.mkdir()
 
-    # Mock rglob to raise PermissionError
-    original_rglob = Path.rglob
+    real_iterdir = Path.iterdir
 
-    def mock_rglob(self, pattern):
-        raise PermissionError("Permission denied")
+    def mock_iterdir(self):
+        if self.resolve() == root_path.resolve():
+            raise PermissionError("Permission denied")
+        return real_iterdir(self)
 
-    monkeypatch.setattr(Path, "rglob", mock_rglob)
+    monkeypatch.setattr(Path, "iterdir", mock_iterdir)
 
     # Should not raise, but should return empty list
     projects = discovery.discover_projects(root_path)
 
-    # Should return empty list (rglob failed, no extra_projects)
+    # Should return empty list (iterdir failed, no extra_projects)
     assert len(projects) == 0
-
-    # Restore original
-    monkeypatch.setattr(Path, "rglob", original_rglob)
 
 
 def test_extra_projects_relative_path_resolution(tmp_path):
@@ -275,7 +261,7 @@ def test_extra_projects_relative_path_resolution(tmp_path):
 
 
 def test_project_order_preserved(tmp_path):
-    """Test that project order is preserved (rglob first, then extra_projects)."""
+    """Test that project order is preserved (immediate subdirs first, then extra_projects)."""
     # Create projects
     project1 = tmp_path / "project1"
     project2 = tmp_path / "project2"

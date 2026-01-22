@@ -215,7 +215,7 @@ This document tracks comprehensive testing of the Simplified Error Registry agen
 
 **Verification**:
 - ✅ Entry exists in `errors_and_fixes.md`
-- ✅ Entry format matches expected structure
+- ✅ Entry format matches expected structure (see `.cursor/rules/global/errors.mdc` "Entry Format" section)
 - ✅ Entry contains all required fields (timestamp, file, line, fix, result)
 
 **Status**: ✅ Setup Complete (Ready for Testing)
@@ -238,7 +238,7 @@ This document tracks comprehensive testing of the Simplified Error Registry agen
 
 **Verification**:
 - ✅ Entries exist in `fix_repo.md`
-- ✅ Entry format matches expected structure
+- ✅ Entry format matches expected structure (see `.cursor/rules/global/errors.mdc` "Entry Format" section)
 - ✅ Multiple fixes exist for TypeError entry (tests highest success count selection)
 - ✅ All entries contain required fields (error signature, tags, fixes, success counts)
 
@@ -414,8 +414,10 @@ This document tracks comprehensive testing of the Simplified Error Registry agen
 **Results**:
 - ✅ All files exist and are properly formatted
 - ✅ Entry formats match expected structure from Phase 1.1
+- ✅ Entry formats match specifications in `.cursor/rules/global/errors.mdc` (see "Entry Format" section)
 - ✅ Headers contain required metadata
-- ✅ Entries contain all required fields
+- ✅ Entries contain all required fields (see `errors.mdc` for complete field list)
+- ✅ Format matches template: `docs/templates/errors_fixes_template/errors_and_fixes.md`
 
 **Status**: ✅ Passed
 
@@ -545,7 +547,7 @@ This document tracks comprehensive testing of the Simplified Error Registry agen
 ### Verification Results
 
 ✅ **Lookup Order Structure**: Three-step lookup order is properly documented in rules  
-✅ **File Formats**: All entries match expected format from Phase 1.1  
+✅ **File Formats**: All entries match expected format from Phase 1.1 and `.cursor/rules/global/errors.mdc` "Entry Format" section  
 ✅ **Multiple Fixes**: fix_repo.md contains multiple fixes with different success counts for testing  
 ✅ **Agent Process Issues**: Process issues are properly documented for future consolidation  
 
@@ -580,7 +582,7 @@ The following tests require actual user interaction or command execution to comp
 Phase 2.5 implementation has successfully:
 - ✅ Created test infrastructure (`.errors_fixes/` folder)
 - ✅ Created test data for all error scenarios
-- ✅ Verified file formats and structure
+- ✅ Verified file formats and structure (matches `.cursor/rules/global/errors.mdc` and template)
 - ✅ Documented comprehensive test scenarios
 - ✅ Completed setup for all test cases
 

@@ -1,5 +1,5 @@
 ---
-description: Error resolution protocol using Simplified Error Registry. Apply when user pastes test errors from "task test:*" commands, reports "There is an error in...", provides test failure output, or requests error fixes. Check .errors_fixes/ files for fixes before attempting solutions.
+description: Error resolution protocol using Simplified Error Registry. Apply when user pastes test errors from "task test:*" commands, reports "There is an error in...", says "fix...", provides test failure output, or requests error fixes. Check .errors_fixes/ files for fixes before attempting solutions.
 alwaysApply: false
 ---
 
@@ -13,10 +13,12 @@ alwaysApply: false
 - Identify errors from test output or user reports
 - Lookup fixes using three-step lookup order
 - Apply fixes (highest success count first)
-- Document all attempts in `.errors_fixes/errors_and_fixes.md`
+- Document all attempts in `.errors_fixes/errors_and_fixes.md` (use exact format - see "Entry Format" section)
 - Advise appropriate test commands after code changes
 
----888
+**Format Reference**: See `docs/templates/errors_fixes_template/errors_and_fixes.md` for the complete template with examples. The "Entry Format" section below shows the exact structure required by the parser.
+
+---
 
 ## Test Generation Requirements
 
@@ -183,18 +185,22 @@ Follow the three-step lookup order:
 
 ### Step 4: Document Result
 
+**CRITICAL**: Use the exact format specified in the "Entry Format" section below. See `docs/templates/errors_fixes_template/errors_and_fixes.md` for the complete template.
+
 **Manual Mode** (after user runs tests):
 
 **If test passes:**
-- Document in `.errors_fixes/errors_and_fixes.md`:
-  - Error signature (error type and message)
-  - File and line number
-  - Fix applied (code before/after)
-  - Explanation of why fix works
-  - Result: ✅ Solved
-  - Success count: 1 (or increment if same fix)
-  - Test command used (e.g., `task test:backend`)
-  - Tags (auto-generated or manual)
+- Document in `.errors_fixes/errors_and_fixes.md` using the exact format:
+  - Error signature (error type and message) - in header: `### Error: ErrorType: Error message`
+  - File and line number - `**File:**` and `**Line:**` fields
+  - Fix applied (code before/after) - `**Fix Applied:**` code block
+  - Explanation of why fix works - `**Explanation:**` field
+  - Result: ✅ Solved - `**Result:**` field
+  - Success count: 1 (or increment if same fix) - `**Success Count:**` field
+  - Test command used (e.g., `task test:backend`) - `**Test Command:**` field
+  - Tags (auto-generated or manual) - `**Tags:**` field
+  - Timestamp (ISO 8601 format) - `**Timestamp:**` field
+  - Error context (traceback) - `**Error Context:**` code block
 
 **If test fails:**
 - Document in `.errors_fixes/errors_and_fixes.md`:
@@ -328,7 +334,13 @@ Use `pathlib.Path` to construct paths. Never hardcode paths.
 
 ## Entry Format
 
-When documenting in `errors_and_fixes.md`, use this format:
+**CRITICAL**: When documenting in `.errors_fixes/errors_and_fixes.md`, you MUST use the exact format below. The consolidation app parser expects this specific structure.
+
+**Reference Template**: See `docs/templates/errors_fixes_template/errors_and_fixes.md` for the complete template with examples.
+
+### Error Entry Format
+
+**Required structure** - All fields must be present for proper parsing:
 
 ```markdown
 ### Error: ErrorType: Error message
@@ -364,7 +376,24 @@ code_after_fix
 **Test Result:** All tests passed
 ```
 
-For agent process issues:
+**Required Fields for Error Entries:**
+- `### Error:` header (exact format: `### Error: ErrorType: Error message`)
+- `**Timestamp:**` (ISO 8601 format: `YYYY-MM-DDTHH:MM:SSZ`)
+- `**File:**` (file path in backticks)
+- `**Line:**` (line number as integer)
+- `**Error Type:**` (error class name in backticks)
+- `**Tags:**` (comma-separated tags in backticks)
+- `**Error Context:**` (code block with traceback)
+- `**Fix Applied:**` (code block with Before/After sections)
+- `**Explanation:**` (text explanation)
+- `**Result:**` (✅ Solved or ❌ Failed)
+- `**Success Count:**` (integer, starts at 1)
+- `**Test Command:**` (command used to test)
+- `**Test Result:**` (test outcome)
+
+### Agent Process Issue Format
+
+**Required structure** - All fields must be present for proper parsing:
 
 ```markdown
 ### Agent Process Issue: Issue description
@@ -386,3 +415,28 @@ The rule or guideline that should be followed to avoid this issue in the future.
 
 **Result:** ✅ Documented
 ```
+
+**Required Fields for Agent Process Issue Entries:**
+- `### Agent Process Issue:` header (exact format: `### Agent Process Issue: Issue description`)
+- `**Timestamp:**` (ISO 8601 format: `YYYY-MM-DDTHH:MM:SSZ`)
+- `**Issue Type:**` (typically `agent-process` in backticks)
+- `**Tags:**` (comma-separated tags in backticks, should include `agent-process`)
+- `**Issue Description:**` (detailed text description)
+- `**Rule Established:**` (the rule/guideline text)
+- `**Example:**` (list with ✅ Good and ❌ Bad examples)
+- `**Result:**` (✅ Documented)
+
+**Format Notes:**
+- Use exact header format: `### Error:` or `### Agent Process Issue:` (three hashes, space, exact text, colon, space, description)
+- All metadata fields use `**Field Name:**` format (bold with colon)
+- Code blocks use triple backticks with language identifier
+- Timestamps must be ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ)
+- Tags are comma-separated and wrapped in backticks
+- Result uses emoji: ✅ for success, ❌ for failure
+- Success Count is an integer (starts at 1, increments on reuse)
+
+**Parser Requirements:**
+- The parser uses regex to find entries: `^###\s+(Error|Agent Process Issue):\s*(.*)$`
+- Metadata is extracted using: `\*\*(?P<key>[^:]+):\*\*\s*(?P<value>.*)`
+- Code blocks are extracted from sections like `**Fix Applied:**` and `**Error Context:**`
+- Missing fields will use defaults, but entries may be skipped if critical fields are missing

@@ -59,7 +59,8 @@ def process_projects(
     for project in projects:
         errors_file = project / ".errors_fixes" / "errors_and_fixes.md"
 
-        if not errors_file.exists():
+        # Optimize: Use is_file() which checks both existence and type in one call
+        if not errors_file.is_file():
             logger.warning(
                 "Missing %s for project %s (skipping)",
                 _ERRORS_FIXES_FILE,
@@ -105,7 +106,9 @@ def process_projects(
             len(process_list),
         )
         results.append(
-            ProjectEntries(project=project, errors=errors_list, process_issues=process_list)
+            ProjectEntries(
+                project=project, errors=errors_list, process_issues=process_list
+            )
         )
 
     if errors_encountered:

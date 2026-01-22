@@ -236,9 +236,12 @@ services:
 **Symptom:** `Parse error for errors_and_fixes.md`
 
 **Solutions:**
-- Check markdown format matches specification
-- Verify timestamps are valid ISO8601 format
-- Check for malformed markdown (unclosed code blocks, etc.)
+- Check markdown format matches specification (see `.cursor/rules/global/errors.mdc` "Entry Format" section)
+- Verify timestamps are valid ISO8601 format (YYYY-MM-DDTHH:MM:SSZ)
+- Check for malformed markdown (unclosed code blocks, missing headers, etc.)
+- Ensure entries use exact format: `### Error:` or `### Agent Process Issue:` headers
+- Verify all required fields are present (see `errors.mdc` for complete field list)
+- Reference template: `docs/templates/errors_fixes_template/errors_and_fixes.md` for examples
 - Review logs for specific error details
 
 ### Dry-Run Shows Changes But Write Fails

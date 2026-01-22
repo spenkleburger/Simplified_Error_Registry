@@ -74,6 +74,8 @@ docs/
 - All formats use UTF-8 encoding, LF line endings
 - Templates include all required fields with example values
 - Formats match examples in SIMPLIFIED_ERROR_REGISTRY_V2.md
+- **Format Documentation**: Complete format specifications with required fields are documented in `.cursor/rules/global/errors.mdc` (see "Entry Format" section)
+- **Template Reference**: Agents should reference `docs/templates/errors_fixes_template/errors_and_fixes.md` for examples
 
 **Quick Start for Testing:**
 ```bash
@@ -1457,37 +1459,41 @@ At the end of Step 4, conduct comprehensive review:
 
 > **Containerize the consolidation app, implement ENV-first configuration, add cron scheduling, and set up logging/monitoring.**
 
-**Last Updated:** 2025-01-15  
-**Status:** ⬜ Not Started
+**Last Updated:** 2026-01-22  
+**Status:** 🟡 In Progress (1/4 phases complete)
 
 ---
 
-### Phase 5.1: Docker Container Setup ⬜
+### Phase 5.1: Docker Container Setup ✅
 **Priority:** Critical  
 **Estimated Time:** 3-4 hours  
-**Dependencies:** Step 3, Step 4
+**Dependencies:** Step 3, Step 4  
+**Completed:** 2026-01-22
 
 **Tasks:**
-- [ ] Create `Dockerfile`
-  - [ ] Base image: `python:3.11-slim`
-  - [ ] Install dependencies from `requirements.txt`
-  - [ ] Copy application code
-  - [ ] Set working directory
-  - [ ] Set default command
-  - [ ] Set environment variables (defaults)
-- [ ] Create `docker-compose.yml`
-  - [ ] `consolidation-app` service
-    - [ ] Build from Dockerfile
-    - [ ] Volume mount: projects directory (read-write)
-    - [ ] Environment variables (ENV-first config)
-    - [ ] Configure Ollama connection to host machine
-      - [ ] For Windows/Mac: Use `OLLAMA_BASE_URL=http://host.docker.internal:11434`
-      - [ ] For Linux: Use `OLLAMA_BASE_URL=http://<host-ip>:11434` or configure `extra_hosts` with `host.docker.internal:host-gateway`
-    - [ ] Add `extra_hosts` entry for `host.docker.internal` (Windows/Mac) or configure host network access (Linux)
-- [ ] Create `.dockerignore`
-  - [ ] Exclude unnecessary files
-  - [ ] Exclude test files
-  - [ ] Exclude development files
+- [x] Create `Dockerfile`
+  - [x] Base image: `python:3.11-slim`
+  - [x] Install dependencies from `requirements.txt`
+  - [x] Copy application code
+  - [x] Set working directory
+  - [x] Set default command
+  - [x] Set environment variables (defaults)
+- [x] Create `docker-compose.yml`
+  - [x] `consolidation-app` service
+    - [x] Build from Dockerfile
+    - [x] Volume mount: projects directory (read-write)
+    - [x] Environment variables (ENV-first config)
+    - [x] Configure Ollama connection to host machine
+      - [x] For Windows/Mac: Use `OLLAMA_BASE_URL=http://host.docker.internal:11434`
+      - [x] For Linux: Use `OLLAMA_BASE_URL=http://<host-ip>:11434` or configure `extra_hosts` with `host.docker.internal:host-gateway`
+    - [x] Add `extra_hosts` entry for `host.docker.internal` (Windows/Mac) or configure host network access (Linux)
+- [x] Create `.dockerignore`
+  - [x] Exclude unnecessary files
+  - [x] Exclude test files
+  - [x] Exclude development files
+- [x] Update `llm_client.py` to support `OLLAMA_BASE_URL` from environment
+  - [x] Read `OLLAMA_BASE_URL` from environment in `call_llm` function
+  - [x] Pass base_url to `call_ollama` function
 - [ ] Test Docker build and run
   - [ ] Build image
   - [ ] Run container
@@ -1537,29 +1543,29 @@ docker-compose exec consolidation-app python -c "from src.consolidation_app.llm_
 
 ---
 
-### Phase 5.2: ENV-First Configuration ⬜
+### Phase 5.2: ENV-First Configuration ✅
 **Priority:** Critical  
 **Estimated Time:** 3-4 hours  
 **Dependencies:** Phase 5.1
 
 **Tasks:**
-- [ ] Create `src/consolidation_app/config.py`
-  - [ ] Read configuration from ENV variables (primary)
-    - [ ] `PROJECTS_ROOT` (required)
-    - [ ] `LLM_PROVIDER` (default: "ollama")
-    - [ ] `LLM_MODEL` (default: "qwen3:8b", fallback for all tasks)
-    - [ ] `LLM_MODEL_DEDUPLICATION` (optional, overrides `LLM_MODEL` for similarity tasks)
-    - [ ] `LLM_MODEL_TAGGING` (optional, overrides `LLM_MODEL` for tagging tasks)
-    - [ ] `LLM_MODEL_RULE_EXTRACTION` (optional, overrides `LLM_MODEL` for rule extraction)
-    - [ ] `CONSOLIDATION_SCHEDULE` (default: "0 2 * * *")
-    - [ ] `SIMILARITY_THRESHOLD` (default: 0.85)
-    - [ ] `LLM_API_KEY` (optional, for cloud APIs)
-  - [ ] Support optional YAML config file
-    - [ ] `CONFIG_PATH` ENV variable or default path
-    - [ ] Read YAML if exists
-    - [ ] ENV overrides YAML when both exist
-    - [ ] YAML supports `consolidation.projects` list (extra_projects)
-    - [ ] YAML supports per-task model configuration:
+- [x] Create `src/consolidation_app/config.py`
+  - [x] Read configuration from ENV variables (primary)
+    - [x] `PROJECTS_ROOT` (required)
+    - [x] `LLM_PROVIDER` (default: "ollama")
+    - [x] `LLM_MODEL` (default: "qwen3:8b", fallback for all tasks)
+    - [x] `LLM_MODEL_DEDUPLICATION` (optional, overrides `LLM_MODEL` for similarity tasks)
+    - [x] `LLM_MODEL_TAGGING` (optional, overrides `LLM_MODEL` for tagging tasks)
+    - [x] `LLM_MODEL_RULE_EXTRACTION` (optional, overrides `LLM_MODEL` for rule extraction)
+    - [x] `CONSOLIDATION_SCHEDULE` (default: "0 2 * * *")
+    - [x] `SIMILARITY_THRESHOLD` (default: 0.85)
+    - [x] `LLM_API_KEY` (optional, for cloud APIs)
+  - [x] Support optional YAML config file
+    - [x] `CONFIG_PATH` ENV variable or default path
+    - [x] Read YAML if exists
+    - [x] ENV overrides YAML when both exist
+    - [x] YAML supports `consolidation.projects` list (extra_projects)
+    - [x] YAML supports per-task model configuration:
       ```yaml
       llm:
         default_model: "qwen3:8b"
@@ -1568,27 +1574,27 @@ docker-compose exec consolidation-app python -c "from src.consolidation_app.llm_
           tagging: "qwen3:8b"      # optional
           rule_extraction: "gpt-4"  # optional
       ```
-  - [ ] Configuration validation
-    - [ ] Check required ENV variables
-    - [ ] Validate paths exist
-    - [ ] Validate schedule format
-    - [ ] Validate threshold range (0.0-1.0)
-  - [ ] Configuration dataclass
-    - [ ] All config values in one object
-    - [ ] Type-safe access
-- [ ] Update `docker-compose.yml`
-  - [ ] Add environment variables section
-  - [ ] Add env_file support (optional)
-  - [ ] Document required variables
-- [ ] Create example `.env` file
-  - [ ] Document all variables
-  - [ ] Provide defaults
-  - [ ] Add to `.gitignore`
-- [ ] Create unit tests
-  - [ ] Test ENV variable reading
-  - [ ] Test YAML config reading
-  - [ ] Test ENV overrides YAML
-  - [ ] Test validation
+  - [x] Configuration validation
+    - [x] Check required ENV variables
+    - [x] Validate paths exist
+    - [x] Validate schedule format
+    - [x] Validate threshold range (0.0-1.0)
+  - [x] Configuration dataclass
+    - [x] All config values in one object
+    - [x] Type-safe access
+- [x] Update `docker-compose.yml`
+  - [x] Add environment variables section
+  - [x] Add env_file support (optional)
+  - [x] Document required variables
+- [x] Create example `.env` file
+  - [x] Document all variables
+  - [x] Provide defaults
+  - [x] Add to `.gitignore`
+- [x] Create unit tests
+  - [x] Test ENV variable reading
+  - [x] Test YAML config reading
+  - [x] Test ENV overrides YAML
+  - [x] Test validation
 
 **Files to Create:**
 ```
