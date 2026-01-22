@@ -6,6 +6,7 @@
 **Status:** ⬜ Not Started
 
 **Recent Updates:**
+- 2026-01-21: Phase 4.5 Rule Extraction completed (rule_extractor.py, ProcessRule, LLM + basic fallback)
 - 2025-01-15: Initial implementation plan created with all 6 steps and detailed phases
 - 2025-01-15: Plan structure aligned with SER_PLAN.md and SIMPLIFIED_ERROR_REGISTRY_V2.md
 
@@ -1043,7 +1044,7 @@ At the end of Step 3, conduct comprehensive review:
 > **Add AI-powered features and select appropriate model: LLM client, semantic deduplication, AI tagging, fix merging, and rule extraction from process issues.**
 
 **Last Updated:** 2026-01-21  
-**Status:** 🟡 In Progress (3/5 phases complete)
+**Status:** 🟡 In Progress (4/5 phases complete)
 
 ---
 
@@ -1347,40 +1348,41 @@ tests/
 
 ---
 
-### Phase 4.5: Rule Extraction ⬜
+### Phase 4.5: Rule Extraction ✅
 **Priority:** Important  
 **Estimated Time:** 5-6 hours  
-**Dependencies:** Phase 4.1, Phase 3.2
+**Dependencies:** Phase 4.1, Phase 3.2  
+**Completed:** 2026-01-21
 
 **Tasks:**
-- [ ] Create `src/consolidation_app/rule_extractor.py`
-  - [ ] Function `extract_process_rules(entries: List[ErrorEntry]) -> List[ProcessRule]`
-    - [ ] Filter entries where `is_process_issue=True` ONLY
-    - [ ] Group by issue type or category
-    - [ ] For each group, use LLM to extract general rules
-    - [ ] Return list of ProcessRule objects
-  - [ ] Function `extract_rules_from_group(group: List[ErrorEntry]) -> List[ProcessRule]`
-    - [ ] Build LLM prompt with all process issues in group
-    - [ ] Call LLM with task="rule_extraction" (uses `LLM_MODEL_RULE_EXTRACTION` if set)
-    - [ ] Ask LLM to extract general rules
-    - [ ] Parse JSON response with rule structure
-    - [ ] Return ProcessRule objects
-  - [ ] LLM prompt template
-    - [ ] Include all process issues in group
-    - [ ] Ask for: rule statement, why it's needed, examples (good/bad), related errors
-    - [ ] Specify JSON response format
-    - [ ] Provide examples
-  - [ ] ProcessRule dataclass
-    - [ ] title, rule, why, examples (good/bad), related_errors
-  - [ ] Add error handling
-    - [ ] Handle LLM failures (use basic rule extraction)
-    - [ ] Handle malformed JSON responses
-    - [ ] Handle empty groups
-- [ ] Create unit tests
-  - [ ] Test rule extraction (mock LLM)
-  - [ ] Test filtering (only process issues)
-  - [ ] Test grouping
-  - [ ] Test error handling
+- [x] Create `src/consolidation_app/rule_extractor.py`
+  - [x] Function `extract_process_rules(entries: List[ErrorEntry]) -> List[ProcessRule]`
+    - [x] Filter entries where `is_process_issue=True` ONLY
+    - [x] Group by issue type or category
+    - [x] For each group, use LLM to extract general rules
+    - [x] Return list of ProcessRule objects
+  - [x] Function `extract_rules_from_group(group: List[ErrorEntry]) -> List[ProcessRule]`
+    - [x] Build LLM prompt with all process issues in group
+    - [x] Call LLM with task="rule_extraction" (uses `LLM_MODEL_RULE_EXTRACTION` if set)
+    - [x] Ask LLM to extract general rules
+    - [x] Parse JSON response with rule structure
+    - [x] Return ProcessRule objects
+  - [x] LLM prompt template
+    - [x] Include all process issues in group
+    - [x] Ask for: rule statement, why it's needed, examples (good/bad), related errors
+    - [x] Specify JSON response format
+    - [x] Provide examples
+  - [x] ProcessRule dataclass
+    - [x] title, rule, why, examples (good/bad), related_errors
+  - [x] Add error handling
+    - [x] Handle LLM failures (use basic rule extraction)
+    - [x] Handle malformed JSON responses
+    - [x] Handle empty groups
+- [x] Create unit tests
+  - [x] Test rule extraction (mock LLM)
+  - [x] Test filtering (only process issues)
+  - [x] Test grouping
+  - [x] Test error handling
 
 **Files to Create:**
 ```
@@ -1405,6 +1407,14 @@ tests/
 # Verify rules are extracted correctly
 # Verify rules are useful and actionable
 ```
+
+**Implementation Notes:**
+- `rule_extractor.py` provides `ProcessRule` dataclass (title, rule, why, examples_good, examples_bad, related_errors) and `extract_process_rules` / `extract_rules_from_group`.
+- Only entries with `is_process_issue=True` are processed; grouping is by `error_type` (issue type).
+- LLM prompt includes all process issues per group; `call_llm(..., task="rule_extraction")` uses `LLM_MODEL_RULE_EXTRACTION` if set.
+- JSON response format: `{"rules": [{...}]}`; markdown code fences stripped before parsing.
+- Fallback: on LLM failure or malformed JSON, `_basic_rule_extraction` builds one `ProcessRule` per entry from signature, fix_code, explanation, result.
+- Unit tests cover filtering, grouping, LLM success/failure, malformed JSON, empty groups, and basic extraction.
 
 ---
 
@@ -1516,7 +1526,7 @@ docker-compose exec consolidation-app python -c "from src.consolidation_app.llm_
   - [ ] Read configuration from ENV variables (primary)
     - [ ] `PROJECTS_ROOT` (required)
     - [ ] `LLM_PROVIDER` (default: "ollama")
-    - [ ] `LLM_MODEL` (default: "qwen2.5-coder:14b", fallback for all tasks)
+    - [ ] `LLM_MODEL` (default: "qwen3:8b", fallback for all tasks)
     - [ ] `LLM_MODEL_DEDUPLICATION` (optional, overrides `LLM_MODEL` for similarity tasks)
     - [ ] `LLM_MODEL_TAGGING` (optional, overrides `LLM_MODEL` for tagging tasks)
     - [ ] `LLM_MODEL_RULE_EXTRACTION` (optional, overrides `LLM_MODEL` for rule extraction)
@@ -1531,11 +1541,11 @@ docker-compose exec consolidation-app python -c "from src.consolidation_app.llm_
     - [ ] YAML supports per-task model configuration:
       ```yaml
       llm:
-        default_model: "qwen2.5-coder:14b"
+        default_model: "qwen3:8b"
         models:
-          deduplication: "qwen2.5-coder:7b"  # optional
-          tagging: "qwen2.5-coder:7b"      # optional
-          rule_extraction: "qwen2.5-coder:14b"  # optional
+          deduplication: "qwen3:8b"  # optional
+          tagging: "qwen3:8b"      # optional
+          rule_extraction: "gpt-4"  # optional
       ```
   - [ ] Configuration validation
     - [ ] Check required ENV variables
