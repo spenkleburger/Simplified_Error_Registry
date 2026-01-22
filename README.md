@@ -277,6 +277,7 @@ export OPENAI_API_KEY=sk-your-key-here
 - **`docs/PROJECT_STATUS.md`** - Current implementation status and progress tracking
 - **`docs/TESTING.md`** - Testing guide, test infrastructure, and best practices
 - **`docs/PHASE_4_6_REVIEW.md`** - Comprehensive code review and security review for Step 4
+- **`docs/DEPENDENCY_MANAGEMENT.md`** - Dependency management guide and verification tools
 
 ---
 

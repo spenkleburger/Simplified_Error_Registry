@@ -51,6 +51,9 @@ push = "python scripts/git_push.py"
 # Freeze dependencies and audit
 freeze = "python scripts/freeze_and_audit.py"
 
+# Check if requirements.txt has all dependencies
+"check:deps" = "python scripts/check_dependencies.py"
+
 # ============================================================================
 # Utility Tasks
 # ============================================================================
